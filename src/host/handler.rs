@@ -5,13 +5,13 @@ use std::str;
 mod http_handler;
 
 pub fn log(level: i32, message: &str) {
-    unsafe { http_handler::log(level as i32, message.as_ptr(), message.len() as u32) };
+    unsafe { http_handler::log(level, message.as_ptr(), message.len() as u32) };
 }
 
 pub fn log_enabled(level: i32) -> bool {
     match unsafe { http_handler::log_enabled(level) } {
-        1 => return true,
-        _ => return false,
+        1 => true,
+        _ => false,
     }
 }
 
@@ -33,7 +33,7 @@ pub fn get_config() -> Option<String> {
 }
 
 pub fn enable_feature(feature: u32) -> i32 {
-    return unsafe { http_handler::enable_features(feature) };
+    unsafe { http_handler::enable_features(feature) }
 }
 
 pub fn header_values(kind: u32, name: &str) -> Vec<Vec<u8>> {
@@ -65,7 +65,7 @@ pub fn remove_header(kind: u32, name: &str) {
 pub fn set_header(kind: u32, name: &str, value: &[u8]) {
     unsafe {
         http_handler::set_header_value(
-            kind as u32,
+            kind,
             name.as_ptr(),
             name.len() as u32,
             value.as_ptr(),
@@ -139,9 +139,8 @@ pub fn body(kind: u32) -> Option<String> {
         (eof, size) = memory::eof_size(unsafe {
             http_handler::read_body(kind, BUF.as_ptr(), BUF_SIZE as u32)
         });
-        match memory::to_string(size) {
-            Some(string) => out.push_str(&string),
-            None => {}
+        if let Some(string) = memory::to_string(size) {
+            out.push_str(&string)
         }
     }
     if out.is_empty() { None } else { Some(out) }

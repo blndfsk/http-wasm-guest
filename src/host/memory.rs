@@ -50,8 +50,8 @@ pub fn i64_to_i32x2(n: i64) -> (i32, i32) {
 
 pub fn eof_size(n: i64) -> (bool, i32) {
     (
-        if (n >> 32) as i32 == 1 { true } else { false }, //upper
-        n as i32,                                         //lower len
+        (n >> 32) as i32 == 1, //upper
+        n as i32,              //lower len
     )
 }
 

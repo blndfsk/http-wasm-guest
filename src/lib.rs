@@ -40,13 +40,12 @@ pub fn http_request() -> u64 {
         None => true,
     };
 
-    return if rc { 1 } else { 0 };
+    if rc { 1 } else { 0 }
 }
 
 #[unsafe(export_name = "handle_response")]
 fn http_response(_req_ctx: i32, _is_error: i32) {
-    match GUEST.get() {
-        Some(handler) => handler.guest.handle_response(Request {}, Response {}),
-        None => {}
+    if let Some(handler) = GUEST.get() {
+        handler.guest.handle_response(Request {}, Response {})
     };
 }
