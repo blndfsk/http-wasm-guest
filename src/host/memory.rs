@@ -1,27 +1,51 @@
 use std::str;
 use std::sync::LazyLock;
 
-pub const BUF_SIZE: i32 = 2048;
-pub static BUF: LazyLock<Box<[u8; 2048]>> = LazyLock::new(|| Box::new([0u8; 2048]));
+pub static BUFFER: LazyLock<Buffer> = LazyLock::new(Buffer::new);
+const SIZE: usize = 2048;
 
-pub fn to_string(size: i32) -> Option<String> {
+pub struct Buffer {
+    pub data: [u8; SIZE],
+    pub size: i32,
+}
+impl Buffer {
+    pub fn new() -> Buffer {
+        Self {
+            data: [0u8; SIZE],
+            size: SIZE as i32,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn from(data: &[u8], size: usize) -> Buffer {
+        let mut buffer = [0; SIZE];
+        buffer[..size].clone_from_slice(data);
+        Self {
+            data: buffer,
+            size: size as i32,
+        }
+    }
+}
+
+pub fn to_string(buf: &[u8], size: i32) -> Option<String> {
     if size == 0 {
         return None;
     }
-    str::from_utf8(&BUF[0..size as usize])
+    str::from_utf8(buf[0..size as usize].as_ref())
         .ok()
         .map(|s| s.to_string())
 }
-pub fn to_bytes(size: i32) -> Option<Vec<u8>> {
+
+pub fn to_bytes(buf: &[u8], size: i32) -> Option<Vec<u8>> {
     if size == 0 {
         return None;
     }
-    Some(BUF[0..size as usize].as_ref().to_owned())
+    Some(buf[0..size as usize].as_ref().to_owned())
 }
 
-pub fn handle_values(count_len: i64) -> Vec<Vec<u8>> {
+pub fn handle_values(buf: &[u8], count_len: i64) -> Vec<Vec<u8>> {
     let (count, len) = i64_to_i32x2(count_len);
-    let data = &BUF[0..len as usize];
+    let data = &buf[0..len as usize];
     let mut out = Vec::with_capacity(count as usize);
     for bytes in split_u8_nul_utf8(data) {
         out.push(bytes.to_vec());
@@ -63,5 +87,12 @@ mod tests {
     fn split_i64() {
         let (a, b) = i64_to_i32x2(2 << 32 | 28);
         assert_eq!((a, b), (2, 28));
+    }
+
+    #[test]
+    fn test_to_string() {
+        let buf = b"test";
+        let r = to_string(buf, buf.len() as i32);
+        assert_eq!(r, Some("test".to_string()))
     }
 }

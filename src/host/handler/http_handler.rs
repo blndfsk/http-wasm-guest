@@ -40,3 +40,25 @@ unsafe extern "C" {
     pub(crate) unsafe fn enable_features(feature: u32) -> i32;
     pub(crate) unsafe fn get_source_addr(buf: *const u8, buf_limit: i32) -> i32;
 }
+
+#[cfg(test)]
+pub mod overrides {
+    #[unsafe(no_mangle)]
+    pub extern "C" fn get_status_code() -> i32 {
+        200
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn get_config(_buf: *const u8, buf_limit: i32) -> i32 {
+        buf_limit
+    }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn get_protocol_version(_ptr: *const u8, message_len: u32) -> i32 {
+        message_len as i32
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn read_body(_body_kind: u32, _ptr: *const u8, buf_limit: u32) -> i64 {
+        1i64 << 32 | buf_limit as i64
+    }
+}
