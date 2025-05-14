@@ -32,8 +32,8 @@ pub fn to_string(buf: &[u8], size: i32) -> Option<String> {
         return None;
     }
     str::from_utf8(buf[0..size as usize].as_ref())
-        .ok()
         .map(|s| s.to_string())
+        .ok()
 }
 
 pub fn to_bytes(buf: &[u8], size: i32) -> Option<Vec<u8>> {

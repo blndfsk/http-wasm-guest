@@ -10,11 +10,11 @@ pub struct Request {}
 
 impl Request {
     pub fn source_addr(&self) -> Option<IpAddr> {
-        handler::source_addr().map(|str| IpAddr::from_str(str.as_str()).ok())?
+        handler::source_addr().and_then(|str| IpAddr::from_str(str.as_str()).ok())
     }
 
     pub fn method(&self) -> Option<Method> {
-        handler::method().map(|src| Method::from_bytes(&src).ok())?
+        handler::method().and_then(|src| Method::from_bytes(&src).ok())
     }
 
     pub fn set_method(&self, method: &Method) {
@@ -23,7 +23,7 @@ impl Request {
     }
 
     pub fn uri(&self) -> Option<Uri> {
-        handler::uri().map(|str| Uri::from_str(str.as_str()).ok())?
+        handler::uri().and_then(|str| Uri::from_str(str.as_str()).ok())
     }
 
     pub fn set_uri(&self, uri: Uri) {
