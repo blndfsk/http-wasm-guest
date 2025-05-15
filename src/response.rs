@@ -1,6 +1,6 @@
 use crate::host::{handler, memory::BUFFER};
 
-static TYPE: u32 = 1;
+static TYPE: i32 = 1;
 pub struct Response {}
 
 impl Response {

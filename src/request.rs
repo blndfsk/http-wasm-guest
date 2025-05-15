@@ -2,7 +2,7 @@ use crate::host::{
     handler::{self, method},
     memory::BUFFER,
 };
-static TYPE: u32 = 0;
+static TYPE: i32 = 0;
 pub struct Request {}
 
 impl Request {

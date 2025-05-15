@@ -16,5 +16,5 @@ pub fn get_config() -> Option<String> {
 }
 
 pub fn enable_feature(feature: Feature) -> i32 {
-    handler::enable_feature(feature as u32)
+    handler::enable_feature(feature as i32)
 }
