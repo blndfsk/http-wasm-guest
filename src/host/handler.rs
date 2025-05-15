@@ -96,11 +96,11 @@ pub fn method(buffer: &Buffer) -> Option<Vec<u8>> {
     }
 }
 
-pub fn set_method(method: &Vec<u8>) {
+pub fn set_method(method: &[u8]) {
     unsafe { http_handler::set_method(method.as_ptr(), method.len() as u32) };
 }
 
-pub fn set_uri(uri: &Vec<u8>) {
+pub fn set_uri(uri: &[u8]) {
     unsafe { http_handler::set_uri(uri.as_ptr(), uri.len() as u32) };
 }
 
