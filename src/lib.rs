@@ -8,12 +8,6 @@ pub mod log;
 pub mod request;
 pub mod response;
 
-#[derive(Clone, Copy)]
-pub(crate) enum Type {
-    Request = 0,
-    Response = 1,
-}
-
 struct Handler {
     guest: Box<dyn Guest>,
 }

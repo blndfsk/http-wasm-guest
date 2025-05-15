@@ -1,10 +1,9 @@
-use super::memory::{BUFFER, Buffer};
+use super::memory::Buffer;
 use crate::host::memory;
-use std::str;
 
 mod http_handler;
 
-pub fn log(level: i32, message: &str) {
+pub fn log(level: i32, message: &[u8]) {
     unsafe { http_handler::log(level, message.as_ptr(), message.len() as u32) };
 }
 
@@ -12,10 +11,7 @@ pub fn log_enabled(level: i32) -> bool {
     matches!(unsafe { http_handler::log_enabled(level) }, 1)
 }
 
-pub fn get_config() -> Option<String> {
-    __get_config(&BUFFER)
-}
-fn __get_config(buffer: &Buffer) -> Option<String> {
+pub fn get_config(buffer: &Buffer) -> Option<String> {
     match unsafe { http_handler::get_config(buffer.data.as_ptr(), buffer.size) } {
         size if size <= buffer.size => memory::to_string(buffer.data.as_slice(), size),
         capacity => {
@@ -33,10 +29,7 @@ pub fn enable_feature(feature: u32) -> i32 {
     unsafe { http_handler::enable_features(feature) }
 }
 
-pub fn header_values(kind: u32, name: &str) -> Vec<Vec<u8>> {
-    __header_values(&BUFFER, kind, name)
-}
-fn __header_values(buffer: &Buffer, kind: u32, name: &str) -> Vec<Vec<u8>> {
+pub fn header_values(buffer: &Buffer, kind: u32, name: &[u8]) -> Vec<Vec<u8>> {
     match unsafe {
         http_handler::get_header_values(
             kind,
@@ -52,10 +45,7 @@ fn __header_values(buffer: &Buffer, kind: u32, name: &str) -> Vec<Vec<u8>> {
         _ => todo!(),
     }
 }
-pub fn header_names(kind: u32) -> Vec<Vec<u8>> {
-    __header_names(&BUFFER, kind)
-}
-fn __header_names(buffer: &Buffer, kind: u32) -> Vec<Vec<u8>> {
+pub fn header_names(buffer: &Buffer, kind: u32) -> Vec<Vec<u8>> {
     match unsafe { http_handler::get_header_names(kind, buffer.data.as_ptr(), buffer.size) } {
         count_len if (count_len as u32) <= (buffer.size as u32) => {
             memory::handle_values(buffer.data.as_slice(), count_len)
@@ -64,11 +54,11 @@ fn __header_names(buffer: &Buffer, kind: u32) -> Vec<Vec<u8>> {
     }
 }
 
-pub fn remove_header(kind: u32, name: &str) {
+pub fn remove_header(kind: u32, name: &[u8]) {
     unsafe { http_handler::remove_header(kind, name.as_ptr(), name.len() as u32) }
 }
 
-pub fn set_header(kind: u32, name: &str, value: &[u8]) {
+pub fn set_header(kind: u32, name: &[u8], value: &[u8]) {
     unsafe {
         http_handler::set_header_value(
             kind,
@@ -80,7 +70,7 @@ pub fn set_header(kind: u32, name: &str, value: &[u8]) {
     };
 }
 
-pub fn add_header_value(kind: u32, name: &str, value: &[u8]) {
+pub fn add_header_value(kind: u32, name: &[u8], value: &[u8]) {
     unsafe {
         http_handler::add_header_value(
             kind,
@@ -92,49 +82,37 @@ pub fn add_header_value(kind: u32, name: &str, value: &[u8]) {
     };
 }
 
-pub fn source_addr() -> Option<String> {
-    __source_addr(&BUFFER)
-}
-fn __source_addr(buffer: &Buffer) -> Option<String> {
+pub fn source_addr(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_source_addr(buffer.data.as_ptr(), buffer.size) } {
-        size if size <= buffer.size => memory::to_string(buffer.data.as_slice(), size),
+        size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }
 
-pub fn method() -> Option<Vec<u8>> {
-    __method(&BUFFER)
-}
-fn __method(buffer: &Buffer) -> Option<Vec<u8>> {
+pub fn method(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_method(buffer.data.as_ptr(), buffer.size) } {
         size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }
 
-pub fn set_method(method: &str) {
+pub fn set_method(method: &Vec<u8>) {
     unsafe { http_handler::set_method(method.as_ptr(), method.len() as u32) };
 }
 
-pub fn set_uri(uri: &str) {
+pub fn set_uri(uri: &Vec<u8>) {
     unsafe { http_handler::set_uri(uri.as_ptr(), uri.len() as u32) };
 }
 
-pub fn version() -> Option<Vec<u8>> {
-    __version(&BUFFER)
-}
-fn __version(buffer: &Buffer) -> Option<Vec<u8>> {
+pub fn version(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_protocol_version(buffer.data.as_ptr(), buffer.size as u32) } {
         size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }
-pub fn uri() -> Option<String> {
-    __uri(&BUFFER)
-}
-fn __uri(buffer: &Buffer) -> Option<String> {
+pub fn uri(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_uri(buffer.data.as_ptr(), buffer.size as u32) } {
-        size if size <= buffer.size => memory::to_string(buffer.data.as_slice(), size),
+        size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }
@@ -147,22 +125,23 @@ pub fn set_status_code(code: i32) {
     unsafe { http_handler::set_status_code(code) }
 }
 
-pub fn body(kind: u32) -> Option<String> {
-    __body(&BUFFER, kind)
-}
-fn __body(buffer: &Buffer, kind: u32) -> Option<String> {
+pub fn body(buffer: &Buffer, kind: u32) -> Option<Vec<u8>> {
     let mut eof = false;
     let mut size;
-    let mut out: String = String::new();
+    let mut out = Vec::new();
     while !eof {
         (eof, size) = memory::eof_size(unsafe {
             http_handler::read_body(kind, buffer.data.as_ptr(), buffer.size as u32)
         });
-        if let Some(string) = memory::to_string(buffer.data.as_slice(), size) {
-            out.push_str(&string)
+        if let Some(vec) = memory::to_bytes(buffer.data.as_slice(), size) {
+            out.push(vec)
         }
     }
-    if out.is_empty() { None } else { Some(out) }
+    if out.is_empty() {
+        None
+    } else {
+        Some(out.concat())
+    }
 }
 
 pub fn write_body(kind: u32, body: &str) {
@@ -173,8 +152,6 @@ pub fn write_body(kind: u32, body: &str) {
 
 #[cfg(test)]
 mod tests {
-    use crate::Type;
-
     use super::*;
 
     #[test]
@@ -186,7 +163,7 @@ mod tests {
     fn test_config() {
         let data = "data";
         let buf = Buffer::from(data.as_bytes(), data.len());
-        let rc = __get_config(&buf);
+        let rc = get_config(&buf);
         assert_eq!(rc, Some(data.to_string()));
     }
 
@@ -194,15 +171,15 @@ mod tests {
     fn test_body() {
         let data = "data";
         let buf = Buffer::from(data.as_bytes(), data.len());
-        let s = __body(&buf, Type::Request as u32);
-        assert_eq!(s, Some(data.to_string()));
+        let s = body(&buf, 1);
+        assert_eq!(s, Some(data.as_bytes().to_vec()));
     }
 
     #[test]
     fn test_version() {
         let data = "data";
         let buf = Buffer::from(data.as_bytes(), data.len());
-        let s = __version(&buf);
+        let s = version(&buf);
         assert_eq!(s, Some(data.as_bytes().to_vec()));
     }
 }

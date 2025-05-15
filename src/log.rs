@@ -17,7 +17,7 @@ pub fn log(level: Level, message: &str) {
     if message.is_empty() {
         return;
     }
-    handler::log(level as i32, message);
+    handler::log(level as i32, message.as_bytes());
 }
 #[macro_export]
 macro_rules! debug {
