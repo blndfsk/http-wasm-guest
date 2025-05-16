@@ -7,13 +7,11 @@ pub enum Level {
     Error = 2,
     None = 3,
 }
-pub fn log_enabled(level: Level) -> bool {
+pub fn enabled(level: Level) -> bool {
     handler::log_enabled(level as i32)
 }
-/**
-log adds a UTF-8 encoded message to the host's logs at the given level.
-*/
-pub fn log(level: Level, message: &str) {
+///writes a message to the host's logs at the given level.
+pub fn write(level: Level, message: &str) {
     if message.is_empty() {
         return;
     }
@@ -21,20 +19,18 @@ pub fn log(level: Level, message: &str) {
 }
 #[macro_export]
 macro_rules! debug {
-    ($($arg:tt)+) => ($crate::__log!($crate::log::Level::Debug, $($arg)+))
+    ($($arg:tt)+) => ($crate::log!($crate::log::Level::Debug, $($arg)+))
 }
 #[macro_export]
 macro_rules! info {
-    ($($arg:tt)+) => ($crate::__log!($crate::log::Level::Info, $($arg)+))
+    ($($arg:tt)+) => ($crate::log!($crate::log::Level::Info, $($arg)+))
 }
 #[macro_export]
 macro_rules! warn {
-    ($($arg:tt)+) => ($crate::__log!($crate::log::Level::Warn, $($arg)+))
+    ($($arg:tt)+) => ($crate::log!($crate::log::Level::Warn, $($arg)+))
 }
 #[macro_export]
-macro_rules! __log {
-    // log!(Level::Info, "a log event")
-    ($lvl:expr, $($arg:tt)+) => {{
-        $crate::log::log($lvl, format!($($arg)+).as_str());
-    }};
+macro_rules! log {
+    // log!(Level::Info, "a log event {}", param1)
+    ($lvl:expr, $($arg:tt)+) => { $crate::log::write($lvl, format!($($arg)+).as_str()); };
 }

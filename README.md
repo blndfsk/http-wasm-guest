@@ -4,9 +4,15 @@ Implementation of the ABI described in https://http-wasm.io/http-handler-abi/
 
 Initial reference code from https://github.com/elisasre/http-wasm-rust/
 
-
-
 ## Usage
+Add dependency to your Cargo.toml
+
+```toml
+[dependencies]
+http-wasm-guest = "0.1.0"
+```
+
+## Example
 ```rust
 use http_wasm_guest::{host::get_config, register, request::Request, response::Response, Guest};
 use serde::Deserialize;
