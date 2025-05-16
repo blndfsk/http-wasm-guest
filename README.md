@@ -7,7 +7,7 @@ Initial reference code from https://github.com/elisasre/http-wasm-rust/
 
 
 ## Usage
-```
+```rust
 use http_wasm_guest::{host::get_config, register, request::Request, response::Response, Guest};
 use serde::Deserialize;
 
