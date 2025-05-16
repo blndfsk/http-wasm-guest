@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::{ops::BitOr, sync::OnceLock};
 
 use request::Request;
 use response::Response;
@@ -15,6 +15,15 @@ unsafe impl Send for Handler {}
 unsafe impl Sync for Handler {}
 
 static GUEST: OnceLock<Handler> = OnceLock::new();
+
+pub struct Feature(i32);
+impl BitOr for Feature {
+    type Output = Feature;
+
+    fn bitor(self, rhs: Self) -> Feature {
+        Feature(self.0 | rhs.0)
+    }
+}
 
 pub trait Guest {
     fn handle_request(&self, request: Request, response: Response) -> (bool, i32);

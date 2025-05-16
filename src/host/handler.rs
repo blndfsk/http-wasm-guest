@@ -13,6 +13,7 @@ pub fn log_enabled(level: i32) -> bool {
 
 pub fn get_config(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_config(buffer.data.as_ptr(), buffer.size) } {
+        0 => None,
         size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         capacity => {
             let mut buf = Vec::with_capacity(capacity as usize);
@@ -106,14 +107,14 @@ pub fn add_header_value(kind: i32, name: &[u8], value: &[u8]) {
 
 pub fn source_addr(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_source_addr(buffer.data.as_ptr(), buffer.size) } {
-        size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
+        size if size > 0 && size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }
 
 pub fn method(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_method(buffer.data.as_ptr(), buffer.size) } {
-        size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
+        size if size > 0 && size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }
@@ -128,13 +129,13 @@ pub fn set_uri(uri: &[u8]) {
 
 pub fn version(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_protocol_version(buffer.data.as_ptr(), buffer.size) } {
-        size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
+        size if size > 0 && size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }
 pub fn uri(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_uri(buffer.data.as_ptr(), buffer.size) } {
-        size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
+        size if size > 0 && size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }

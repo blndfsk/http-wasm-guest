@@ -9,7 +9,7 @@ Add dependency to your Cargo.toml
 
 ```toml
 [dependencies]
-http-wasm-guest = "0.2.0"
+http-wasm-guest = "0.2.1"
 ```
 
 ## Example
