@@ -4,6 +4,6 @@ description = "a library providing a http-wasm guest handler"
 version = "0.2.0"
 edition = "2024"
 repository = "https://github.com/blndfsk/http-wasm-guest"
-license = "0BSD"
+license = "MIT"
 
 [dependencies]
