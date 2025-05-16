@@ -11,10 +11,10 @@ impl Response {
         handler::set_status_code(code);
     }
     pub fn header_names(&self) -> Vec<Vec<u8>> {
-        handler::header_names(&buffer(), TYPE)
+        handler::header_names(buffer(), TYPE)
     }
     pub fn header_values(&self, name: &[u8]) -> Vec<Vec<u8>> {
-        handler::header_values(&buffer(), TYPE, name)
+        handler::header_values(buffer(), TYPE, name)
     }
     pub fn set_header(&self, name: &[u8], value: &[u8]) {
         handler::set_header(TYPE, name, value);
@@ -26,7 +26,7 @@ impl Response {
         handler::remove_header(TYPE, name);
     }
     pub fn body(&self) -> Option<Vec<u8>> {
-        handler::body(&buffer(), TYPE)
+        handler::body(buffer(), TYPE)
     }
     pub fn write_body(&self, body: &str) {
         handler::write_body(TYPE, body);

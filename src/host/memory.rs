@@ -16,12 +16,12 @@ impl Buffer {
     }
 
     #[cfg(test)]
-    pub fn from(data: &[u8], size: usize) -> Buffer {
+    pub fn from_vec(data: &Vec<u8>) -> Buffer {
         let mut buffer = [0; SIZE];
-        buffer[..size].clone_from_slice(data);
+        buffer[..data.len()].clone_from_slice(data);
         Self {
             data: buffer,
-            size: size as i32,
+            size: data.len() as i32,
         }
     }
 }
@@ -37,8 +37,7 @@ pub fn to_bytes(buf: &[u8], size: i32) -> Option<Vec<u8>> {
     Some(buf[0..size as usize].as_ref().to_owned())
 }
 
-pub fn handle_values(buf: &[u8], count_len: i64) -> Vec<Vec<u8>> {
-    let (count, len) = split_i64(count_len);
+pub fn handle_values(buf: &[u8], count: i32, len: i32) -> Vec<Vec<u8>> {
     let src = &buf[0..len as usize];
     let mut out = Vec::with_capacity(count as usize);
     for bytes in split_u8_nul(src) {

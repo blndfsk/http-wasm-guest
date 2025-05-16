@@ -12,7 +12,7 @@ pub enum Feature {
 pub struct Host {}
 
 pub fn get_config() -> Option<String> {
-    handler::get_config(&buffer()).and_then(|b| String::from_utf8(b).ok())
+    handler::get_config(buffer()).and_then(|b| String::from_utf8(b).ok())
 }
 
 pub fn enable_feature(feature: Feature) -> i32 {

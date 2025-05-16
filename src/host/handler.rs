@@ -41,18 +41,47 @@ pub fn header_values(buffer: &Buffer, kind: i32, name: &[u8]) -> Vec<Vec<u8>> {
             buffer.size,
         )
     } {
-        count_len if (count_len as i32) <= buffer.size => {
-            memory::handle_values(buffer.data.as_slice(), count_len)
+        count_len => {
+            let (count, len) = memory::split_i64(count_len);
+            if len <= buffer.size {
+                return memory::handle_values(buffer.data.as_slice(), count, len);
+            }
+
+            let mut buf = Vec::with_capacity(len as usize);
+            let vec = unsafe {
+                let ptr = buf.as_mut_ptr();
+                let length = http_handler::get_header_values(
+                    kind,
+                    name.as_ptr(),
+                    name.len() as i32,
+                    ptr,
+                    len,
+                );
+                let new_buf = Vec::from_raw_parts(ptr, length as usize, len as usize);
+                memory::handle_values(new_buf.as_slice(), count, len)
+            };
+            std::mem::forget(buf);
+            vec
         }
-        _ => todo!(),
     }
 }
 pub fn header_names(buffer: &Buffer, kind: i32) -> Vec<Vec<u8>> {
     match unsafe { http_handler::get_header_names(kind, buffer.data.as_ptr(), buffer.size) } {
-        count_len if (count_len as i32) <= buffer.size => {
-            memory::handle_values(buffer.data.as_slice(), count_len)
+        count_len => {
+            let (count, len) = memory::split_i64(count_len);
+            if len <= buffer.size {
+                return memory::handle_values(buffer.data.as_slice(), count, len);
+            }
+            let mut buf = Vec::with_capacity(len as usize);
+            let vec = unsafe {
+                let ptr = buf.as_mut_ptr();
+                let length = http_handler::get_header_names(kind, ptr, len);
+                let new_buf = Vec::from_raw_parts(ptr, length as usize, len as usize);
+                memory::handle_values(new_buf.as_slice(), count, len)
+            };
+            std::mem::forget(buf);
+            vec
         }
-        _ => todo!(),
     }
 }
 
@@ -163,25 +192,25 @@ mod tests {
     }
     #[test]
     fn test_config() {
-        let data = "data";
-        let buf = Buffer::from(data.as_bytes(), data.len());
+        let data = "data".as_bytes().to_vec();
+        let buf = Buffer::from_vec(&data);
         let rc = get_config(&buf);
-        assert_eq!(rc, Some(data.as_bytes().to_vec()));
+        assert_eq!(rc, Some(data));
     }
 
     #[test]
     fn test_body() {
-        let data = "data";
-        let buf = Buffer::from(data.as_bytes(), data.len());
+        let data = "data".as_bytes().to_vec();
+        let buf = Buffer::from_vec(&data);
         let s = body(&buf, 1);
-        assert_eq!(s, Some(data.as_bytes().to_vec()));
+        assert_eq!(s, Some(data));
     }
 
     #[test]
     fn test_version() {
-        let data = "data";
-        let buf = Buffer::from(data.as_bytes(), data.len());
+        let data = "data".as_bytes().to_vec();
+        let buf = Buffer::from_vec(&data);
         let s = version(&buf);
-        assert_eq!(s, Some(data.as_bytes().to_vec()));
+        assert_eq!(s, Some(data));
     }
 }
