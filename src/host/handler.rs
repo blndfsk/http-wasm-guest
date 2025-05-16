@@ -32,7 +32,7 @@ pub fn enable_feature(feature: i32) -> i32 {
 }
 
 pub fn header_values(buffer: &Buffer, kind: i32, name: &[u8]) -> Vec<Vec<u8>> {
-    match unsafe {
+    let count_len = unsafe {
         http_handler::get_header_values(
             kind,
             name.as_ptr(),
@@ -40,49 +40,40 @@ pub fn header_values(buffer: &Buffer, kind: i32, name: &[u8]) -> Vec<Vec<u8>> {
             buffer.data.as_ptr(),
             buffer.size,
         )
-    } {
-        count_len => {
-            let (count, len) = memory::split_i64(count_len);
-            if len <= buffer.size {
-                return memory::handle_values(buffer.data.as_slice(), count, len);
-            }
+    };
+    let (count, len) = memory::split_i64(count_len);
+    if len <= buffer.size {
+        return memory::handle_values(buffer.data.as_slice(), count, len);
+    }
 
-            let mut buf = Vec::with_capacity(len as usize);
-            let vec = unsafe {
-                let ptr = buf.as_mut_ptr();
-                let length = http_handler::get_header_values(
-                    kind,
-                    name.as_ptr(),
-                    name.len() as i32,
-                    ptr,
-                    len,
-                );
-                let new_buf = Vec::from_raw_parts(ptr, length as usize, len as usize);
-                memory::handle_values(new_buf.as_slice(), count, len)
-            };
-            std::mem::forget(buf);
-            vec
-        }
-    }
+    let mut buf = Vec::with_capacity(len as usize);
+    let vec = unsafe {
+        let ptr = buf.as_mut_ptr();
+        let length =
+            http_handler::get_header_values(kind, name.as_ptr(), name.len() as i32, ptr, len);
+        let new_buf = Vec::from_raw_parts(ptr, length as usize, len as usize);
+        memory::handle_values(new_buf.as_slice(), count, len)
+    };
+    std::mem::forget(buf);
+    vec
 }
+
 pub fn header_names(buffer: &Buffer, kind: i32) -> Vec<Vec<u8>> {
-    match unsafe { http_handler::get_header_names(kind, buffer.data.as_ptr(), buffer.size) } {
-        count_len => {
-            let (count, len) = memory::split_i64(count_len);
-            if len <= buffer.size {
-                return memory::handle_values(buffer.data.as_slice(), count, len);
-            }
-            let mut buf = Vec::with_capacity(len as usize);
-            let vec = unsafe {
-                let ptr = buf.as_mut_ptr();
-                let length = http_handler::get_header_names(kind, ptr, len);
-                let new_buf = Vec::from_raw_parts(ptr, length as usize, len as usize);
-                memory::handle_values(new_buf.as_slice(), count, len)
-            };
-            std::mem::forget(buf);
-            vec
-        }
+    let count_len =
+        unsafe { http_handler::get_header_names(kind, buffer.data.as_ptr(), buffer.size) };
+    let (count, len) = memory::split_i64(count_len);
+    if len <= buffer.size {
+        return memory::handle_values(buffer.data.as_slice(), count, len);
     }
+    let mut buf = Vec::with_capacity(len as usize);
+    let vec = unsafe {
+        let ptr = buf.as_mut_ptr();
+        let length = http_handler::get_header_names(kind, ptr, len);
+        let new_buf = Vec::from_raw_parts(ptr, length as usize, len as usize);
+        memory::handle_values(new_buf.as_slice(), count, len)
+    };
+    std::mem::forget(buf);
+    vec
 }
 
 pub fn remove_header(kind: i32, name: &[u8]) {

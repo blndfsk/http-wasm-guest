@@ -11,8 +11,8 @@ pub enum Feature {
 
 pub struct Host {}
 
-pub fn get_config() -> Option<String> {
-    handler::get_config(buffer()).and_then(|b| String::from_utf8(b).ok())
+pub fn get_config() -> Option<Vec<u8>> {
+    handler::get_config(buffer())
 }
 
 pub fn enable_feature(feature: Feature) -> i32 {

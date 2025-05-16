@@ -1,4 +1,4 @@
-use std::{fmt::Debug, sync::OnceLock};
+use std::sync::OnceLock;
 
 use request::Request;
 use response::Response;
@@ -21,7 +21,7 @@ pub trait Guest {
     fn handle_response(&self, request: Request, response: Response);
 }
 
-pub fn register<T: Guest + 'static + Debug>(guest: T) {
+pub fn register<T: Guest + 'static>(guest: T) {
     GUEST.get_or_init(|| Handler {
         guest: Box::new(guest),
     });

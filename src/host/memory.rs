@@ -16,7 +16,7 @@ impl Buffer {
     }
 
     #[cfg(test)]
-    pub fn from_vec(data: &Vec<u8>) -> Buffer {
+    pub fn from_vec(data: &[u8]) -> Buffer {
         let mut buffer = [0; SIZE];
         buffer[..data.len()].clone_from_slice(data);
         Self {
