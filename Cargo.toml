@@ -1,6 +1,9 @@
 [package]
 name = "http-wasm-guest"
+description = "a library providing a http-wasm guest handler"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/blndfsk/http-wasm-guest"
+license = "0BSD"
 
 [dependencies]
