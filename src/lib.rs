@@ -1,12 +1,11 @@
+//! library implementing the [Guest ABI](https://http-wasm.io/http-handler-abi/) for interfacing with
+//! [http-wasm](https://github.com/http-wasm)
 use std::{ops::BitOr, sync::OnceLock};
 
-use request::Request;
-use response::Response;
+use host::{Request, Response};
 
+pub mod feature;
 pub mod host;
-pub mod log;
-pub mod request;
-pub mod response;
 
 struct Handler {
     guest: Box<dyn Guest>,
@@ -16,7 +15,8 @@ unsafe impl Sync for Handler {}
 
 static GUEST: OnceLock<Handler> = OnceLock::new();
 
-pub struct Feature(i32);
+#[derive(Debug)]
+pub struct Feature(pub i32);
 impl BitOr for Feature {
     type Output = Feature;
 
@@ -24,10 +24,17 @@ impl BitOr for Feature {
         Feature(self.0 | rhs.0)
     }
 }
+impl PartialEq for Feature {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
 
 pub trait Guest {
-    fn handle_request(&self, request: Request, response: Response) -> (bool, i32);
-    fn handle_response(&self, request: Request, response: Response);
+    fn handle_request(&self, _request: Request, _response: Response) -> (bool, i32) {
+        (true, 0)
+    }
+    fn handle_response(&self, _request: Request, _response: Response) {}
 }
 
 pub fn register<T: Guest + 'static>(guest: T) {
@@ -53,13 +60,20 @@ fn http_response(_req_ctx: i32, _is_error: i32) {
     };
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_value() {
-        assert_eq!((0 as i64) << 32 | 0, 0);
-        assert_eq!((0 as i64) << 32 | 1, 1);
-        assert_eq!((16 as i64) << 32 | 1, 68719476737);
-        assert_eq!((16 as i64) << 32 | 0, 68719476736);
-    }
+#[macro_export]
+macro_rules! debug {
+    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Debug, $($arg)+))
+}
+#[macro_export]
+macro_rules! info {
+    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Info, $($arg)+))
+}
+#[macro_export]
+macro_rules! warn {
+    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Warn, $($arg)+))
+}
+#[macro_export]
+macro_rules! log {
+    // log!(Level::Info, "a log event {}", param1)
+    ($lvl:expr, $($arg:tt)+) => { $crate::host::log::write($lvl, format!($($arg)+).as_str()); };
 }

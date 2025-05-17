@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 static BUFFER: LazyLock<Buffer> = LazyLock::new(Buffer::new);
 const SIZE: usize = 2048;
 
-pub struct Buffer {
+pub(crate) struct Buffer {
     pub data: [u8; SIZE],
     pub size: i32,
 }
@@ -26,18 +26,18 @@ impl Buffer {
     }
 }
 
-pub fn buffer() -> &'static LazyLock<Buffer> {
+pub(crate) fn buffer() -> &'static LazyLock<Buffer> {
     &BUFFER
 }
 
-pub fn to_bytes(buf: &[u8], size: i32) -> Option<Vec<u8>> {
+pub(crate) fn to_bytes(buf: &[u8], size: i32) -> Option<Vec<u8>> {
     if size == 0 {
         return None;
     }
     Some(buf[0..size as usize].as_ref().to_owned())
 }
 
-pub fn handle_values(buf: &[u8], count: i32, len: i32) -> Vec<Vec<u8>> {
+pub(crate) fn handle_values(buf: &[u8], count: i32, len: i32) -> Vec<Vec<u8>> {
     let src = &buf[0..len as usize];
     let mut out = Vec::with_capacity(count as usize);
     for bytes in split_u8_nul(src) {

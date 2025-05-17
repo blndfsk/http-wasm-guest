@@ -13,7 +13,6 @@ pub fn log_enabled(level: i32) -> bool {
 
 pub fn get_config(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_config(buffer.data.as_ptr(), buffer.size) } {
-        0 => None,
         size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         capacity => {
             let mut buf = Vec::with_capacity(capacity as usize);
@@ -107,14 +106,14 @@ pub fn add_header_value(kind: i32, name: &[u8], value: &[u8]) {
 
 pub fn source_addr(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_source_addr(buffer.data.as_ptr(), buffer.size) } {
-        size if size > 0 && size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
+        size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }
 
 pub fn method(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_method(buffer.data.as_ptr(), buffer.size) } {
-        size if size > 0 && size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
+        size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }
@@ -129,13 +128,13 @@ pub fn set_uri(uri: &[u8]) {
 
 pub fn version(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_protocol_version(buffer.data.as_ptr(), buffer.size) } {
-        size if size > 0 && size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
+        size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }
 pub fn uri(buffer: &Buffer) -> Option<Vec<u8>> {
     match unsafe { http_handler::get_uri(buffer.data.as_ptr(), buffer.size) } {
-        size if size > 0 && size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
+        size if size <= buffer.size => memory::to_bytes(buffer.data.as_slice(), size),
         _ => None,
     }
 }
@@ -189,7 +188,13 @@ mod tests {
         let rc = get_config(&buf);
         assert_eq!(rc, Some(data));
     }
-
+    #[test]
+    fn test_config_empty() {
+        let data = Vec::new();
+        let buf = Buffer::from_vec(&data);
+        let rc = get_config(&buf);
+        assert_eq!(rc, None);
+    }
     #[test]
     fn test_body() {
         let data = "data".as_bytes().to_vec();
@@ -204,5 +209,19 @@ mod tests {
         let buf = Buffer::from_vec(&data);
         let s = version(&buf);
         assert_eq!(s, Some(data));
+    }
+    #[test]
+    fn test_header() {
+        let data = b"foo\0bar\0".to_vec();
+        let buf = Buffer::from_vec(&data);
+        let rc = header_names(&buf, 0);
+        assert_eq!(rc, vec![b"foo".to_vec(), b"bar".to_vec()]);
+    }
+    #[test]
+    fn test_header_empty() {
+        let data = Vec::new();
+        let buf = Buffer::from_vec(&data);
+        let rc = header_names(&buf, 0);
+        assert!(rc.is_empty());
     }
 }

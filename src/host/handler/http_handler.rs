@@ -64,4 +64,8 @@ pub mod overrides {
     pub extern "C" fn read_body(_body_kind: i32, _ptr: *const u8, buf_limit: i32) -> i64 {
         1i64 << 32 | buf_limit as i64
     }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn get_header_names(_header_kind: i32, _buf: *const u8, buf_limit: i32) -> i64 {
+        1i64 << 32 | buf_limit as i64
+    }
 }
