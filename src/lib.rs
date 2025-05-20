@@ -15,18 +15,13 @@ unsafe impl Sync for Handler {}
 
 static GUEST: OnceLock<Handler> = OnceLock::new();
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Feature(pub i32);
 impl BitOr for Feature {
     type Output = Feature;
 
     fn bitor(self, rhs: Self) -> Feature {
         Feature(self.0 | rhs.0)
-    }
-}
-impl PartialEq for Feature {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
     }
 }
 

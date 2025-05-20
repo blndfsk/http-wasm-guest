@@ -1,12 +1,9 @@
+//! Definition of the host functions
+//! https://http-wasm.io/http-handler-abi/
 #[link(wasm_import_module = "http_handler")]
 unsafe extern "C" {
-    /// log adds a UTF-8 encoded message to the host's logs at the given $level.
     pub(crate) unsafe fn log(level: i32, message: *const u8, message_len: i32);
-    /// log_enabled returns 1 if the $level is enabled. This value may be cached
-    /// at request granularity.
     pub(crate) unsafe fn log_enabled(level: i32) -> i32;
-    /// get_config writes configuration from the host to memory if it exists and
-    /// isn't larger than the `buf_limit`. The result is its length in bytes.
     pub(crate) unsafe fn get_config(buf: *const u8, buf_limit: i32) -> i32;
     pub(crate) unsafe fn get_method(buf: *const u8, buf_limit: i32) -> i32;
     pub(crate) unsafe fn set_method(ptr: *const u8, message_len: i32);
