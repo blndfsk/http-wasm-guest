@@ -41,7 +41,9 @@ pub fn register<T: Guest + 'static>(guest: T) {
 #[unsafe(export_name = "handle_request")]
 fn http_request() -> i64 {
     let (next, ctx_next) = match GUEST.get() {
-        Some(handler) => handler.guest.handle_request(Request {}, Response {}),
+        Some(handler) => handler
+            .guest
+            .handle_request(Request::new(), Response::new()),
         None => (true, 0),
     };
 
@@ -51,7 +53,9 @@ fn http_request() -> i64 {
 #[unsafe(export_name = "handle_response")]
 fn http_response(_req_ctx: i32, _is_error: i32) {
     if let Some(handler) = GUEST.get() {
-        handler.guest.handle_response(Request {}, Response {})
+        handler
+            .guest
+            .handle_response(Request::new(), Response::new())
     };
 }
 
@@ -66,6 +70,10 @@ macro_rules! info {
 #[macro_export]
 macro_rules! warn {
     ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Warn, $($arg)+))
+}
+#[macro_export]
+macro_rules! error {
+    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Error, $($arg)+))
 }
 #[macro_export]
 macro_rules! log {

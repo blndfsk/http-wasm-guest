@@ -1,10 +1,19 @@
-use memory::buffer;
+use std::string::FromUtf8Error;
 
 pub(crate) mod handler;
-pub(crate) mod memory;
 
-pub fn get_config() -> Option<Vec<u8>> {
-    handler::get_config(buffer())
+pub fn get_config() -> Result<String, FromUtf8Error> {
+    String::from_utf8(handler::get_config())
+}
+
+/**
+ * enables the specified Features on the host.
+ *
+ * https://http-wasm.io/http-handler-abi/#enable_features
+ *
+ */
+pub fn enable_feature(feature: crate::Feature) -> i32 {
+    handler::enable_feature(feature.0)
 }
 
 pub mod log {
@@ -29,79 +38,101 @@ pub mod log {
     }
 }
 
-#[derive(Clone, Copy)]
-struct Type(i32);
-static TYPE_REQUEST: Type = Type(0);
-static TYPE_RESPONSE: Type = Type(1);
+static KIND_REQ: i32 = 0;
+static KIND_RES: i32 = 1;
 
-pub struct Header(Type);
+pub struct Header {
+    kind: i32,
+}
 impl Header {
-    pub fn names(&self) -> Vec<Vec<u8>> {
-        handler::header_names(buffer(), self.0.0)
+    pub fn names(&self) -> Vec<Box<[u8]>> {
+        handler::header_names(self.kind)
     }
-    pub fn values(&self, name: &[u8]) -> Vec<Vec<u8>> {
-        handler::header_values(buffer(), self.0.0, name)
+    pub fn values(&self, name: &[u8]) -> Vec<Box<[u8]>> {
+        handler::header_values(self.kind, name)
     }
     pub fn set(&self, name: &[u8], value: &[u8]) {
-        handler::set_header(self.0.0, name, value);
+        handler::set_header(self.kind, name, value);
     }
     pub fn add(&self, name: &[u8], value: &[u8]) {
-        handler::add_header_value(self.0.0, name, value);
+        handler::add_header_value(self.kind, name, value);
     }
     pub fn remove(&self, name: &[u8]) {
-        handler::remove_header(self.0.0, name);
+        handler::remove_header(self.kind, name);
     }
 }
-pub struct Body(Type);
+pub struct Body {
+    kind: i32,
+}
 impl Body {
-    pub fn read(&self) -> Option<Vec<u8>> {
-        handler::body(buffer(), self.0.0)
+    pub fn read(&self) -> Option<Box<[u8]>> {
+        handler::body(self.kind)
     }
-    pub fn write(&self, body: &str) {
-        handler::write_body(self.0.0, body);
+    pub fn write(&self, body: &[u8]) {
+        handler::write_body(self.kind, body);
     }
 }
-pub struct Request;
+
+pub struct Request {
+    header: Header,
+    body: Body,
+}
 
 impl Request {
-    pub fn source_addr(&self) -> Option<Vec<u8>> {
-        handler::source_addr(buffer())
+    pub fn new() -> Self {
+        Self {
+            header: Header { kind: KIND_REQ },
+            body: Body { kind: KIND_REQ },
+        }
     }
-    pub fn version(&self) -> Option<Vec<u8>> {
-        handler::version(buffer())
+    pub fn source_addr(&self) -> Option<Box<[u8]>> {
+        handler::source_addr()
     }
-    pub fn method(&self) -> Option<Vec<u8>> {
-        handler::method(buffer())
+    /// the version of the http-request
+    pub fn version(&self) -> Option<Box<[u8]>> {
+        handler::version()
+    }
+    pub fn method(&self) -> Option<Box<[u8]>> {
+        handler::method()
     }
     pub fn set_method(&self, method: &[u8]) {
         handler::set_method(method);
     }
-    pub fn uri(&self) -> Option<Vec<u8>> {
-        handler::uri(buffer())
+    pub fn uri(&self) -> Option<Box<[u8]>> {
+        handler::uri()
     }
     pub fn set_uri(&self, uri: &[u8]) {
         handler::set_uri(uri);
     }
-    pub fn header(&self) -> Header {
-        Header(TYPE_REQUEST)
+    pub fn header(&self) -> &Header {
+        &self.header
     }
-    pub fn body(&self) -> Body {
-        Body(TYPE_RESPONSE)
+    pub fn body(&self) -> &Body {
+        &self.body
     }
 }
-pub struct Response;
+pub struct Response {
+    header: Header,
+    body: Body,
+}
 
 impl Response {
-    pub fn status_code(&self) -> i32 {
+    pub fn new() -> Self {
+        Self {
+            header: Header { kind: KIND_RES },
+            body: Body { kind: KIND_RES },
+        }
+    }
+    pub fn status(&self) -> i32 {
         handler::status_code()
     }
-    pub fn set_status_code(&self, code: i32) {
+    pub fn set_status(&self, code: i32) {
         handler::set_status_code(code);
     }
-    pub fn header(&self) -> Header {
-        Header(TYPE_RESPONSE)
+    pub fn header(&self) -> &Header {
+        &self.header
     }
-    pub fn body(&self) -> Body {
-        Body(TYPE_RESPONSE)
+    pub fn body(&self) -> &Body {
+        &self.body
     }
 }

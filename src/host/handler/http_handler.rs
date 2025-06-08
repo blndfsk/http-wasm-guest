@@ -1,5 +1,6 @@
 //! Definition of the host functions
 //! https://http-wasm.io/http-handler-abi/
+#[cfg_attr(rustfmt, rustfmt_skip)]
 #[link(wasm_import_module = "http_handler")]
 unsafe extern "C" {
     pub(crate) unsafe fn log(level: i32, message: *const u8, message_len: i32);
@@ -10,29 +11,11 @@ unsafe extern "C" {
     pub(crate) unsafe fn get_uri(ptr: *const u8, buf_limit: i32) -> i32;
     pub(crate) unsafe fn set_uri(ptr: *const u8, message_len: i32);
     pub(crate) unsafe fn get_protocol_version(ptr: *const u8, message_len: i32) -> i32;
-    pub(crate) unsafe fn add_header_value(
-        header_kind: i32,
-        name_ptr: *const u8,
-        name_len: i32,
-        value_ptr: *const u8,
-        value_len: i32,
-    );
-    pub(crate) unsafe fn set_header_value(
-        header_kind: i32,
-        name_ptr: *const u8,
-        name_len: i32,
-        value_ptr: *const u8,
-        value_len: i32,
-    );
+    pub(crate) unsafe fn add_header_value(header_kind: i32, name_ptr: *const u8, name_len: i32, value_ptr: *const u8, value_len: i32,);
+    pub(crate) unsafe fn set_header_value(header_kind: i32, name_ptr: *const u8, name_len: i32, value_ptr: *const u8, value_len: i32,);
     pub(crate) unsafe fn remove_header(header_kind: i32, name_ptr: *const u8, name_len: i32);
     pub(crate) unsafe fn get_header_names(header_kind: i32, buf: *const u8, buf_limit: i32) -> i64;
-    pub(crate) unsafe fn get_header_values(
-        header_kind: i32,
-        name_ptr: *const u8,
-        name_len: i32,
-        buf: *const u8,
-        buf_limit: i32,
-    ) -> i64;
+    pub(crate) unsafe fn get_header_values(header_kind: i32, name_ptr: *const u8, name_len: i32, buf: *const u8, buf_limit: i32,) -> i64;
     pub(crate) unsafe fn read_body(body_kind: i32, ptr: *const u8, buf_limit: i32) -> i64;
     pub(crate) unsafe fn write_body(body_kind: i32, ptr: *const u8, message_len: i32);
     pub(crate) unsafe fn get_status_code() -> i32;
@@ -50,6 +33,14 @@ pub mod overrides {
 
     #[unsafe(no_mangle)]
     pub extern "C" fn get_config(_buf: *const u8, buf_limit: i32) -> i32 {
+        buf_limit
+    }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn get_method(_buf: *const u8, buf_limit: i32) -> i32 {
+        buf_limit
+    }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn set_method(_buf: *const u8, buf_limit: i32) -> i32 {
         buf_limit
     }
     #[unsafe(no_mangle)]
