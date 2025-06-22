@@ -10,6 +10,7 @@ impl Buffer {
     fn new() -> Buffer {
         Self { data: [0u8; SIZE] }
     }
+    #[inline]
     pub fn size(&self) -> i32 {
         self.data.len() as i32
     }

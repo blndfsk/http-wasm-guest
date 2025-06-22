@@ -1,6 +1,6 @@
-use std::string::FromUtf8Error;
+use std::{fmt::Display, ops::Deref, string::FromUtf8Error};
 
-pub(crate) mod handler;
+mod handler;
 
 pub fn get_config() -> Result<String, FromUtf8Error> {
     String::from_utf8(handler::get_config())
@@ -41,23 +41,54 @@ pub mod log {
 static KIND_REQ: i32 = 0;
 static KIND_RES: i32 = 1;
 
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct Bytes(Box<[u8]>);
+impl Bytes {
+    pub fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.0).unwrap_or_default()
+    }
+}
+impl Deref for Bytes {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
+}
+impl Display for Bytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+impl From<&str> for Bytes {
+    fn from(value: &str) -> Self {
+        Self(value.as_bytes().to_vec().into_boxed_slice())
+    }
+}
+
 pub struct Header {
     kind: i32,
 }
 impl Header {
-    pub fn names(&self) -> Vec<Box<[u8]>> {
+    pub fn names(&self) -> Vec<Bytes> {
         handler::header_names(self.kind)
+            .iter()
+            .map(|h| Bytes(h.clone()))
+            .collect()
     }
-    pub fn values(&self, name: &[u8]) -> Vec<Box<[u8]>> {
+    pub fn values(&self, name: &Bytes) -> Vec<Bytes> {
         handler::header_values(self.kind, name)
+            .iter()
+            .map(|h| Bytes(h.clone()))
+            .collect()
     }
-    pub fn set(&self, name: &[u8], value: &[u8]) {
+    pub fn set(&self, name: &Bytes, value: &Bytes) {
         handler::set_header(self.kind, name, value);
     }
-    pub fn add(&self, name: &[u8], value: &[u8]) {
+    pub fn add(&self, name: &Bytes, value: &Bytes) {
         handler::add_header_value(self.kind, name, value);
     }
-    pub fn remove(&self, name: &[u8]) {
+    pub fn remove(&self, name: &Bytes) {
         handler::remove_header(self.kind, name);
     }
 }
@@ -65,10 +96,10 @@ pub struct Body {
     kind: i32,
 }
 impl Body {
-    pub fn read(&self) -> Option<Box<[u8]>> {
-        handler::body(self.kind)
+    pub fn read(&self) -> Bytes {
+        Bytes(handler::body(self.kind).unwrap_or_default())
     }
-    pub fn write(&self, body: &[u8]) {
+    pub fn write(&self, body: &Bytes) {
         handler::write_body(self.kind, body);
     }
 }
@@ -78,6 +109,12 @@ pub struct Request {
     body: Body,
 }
 
+impl Default for Request {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Request {
     pub fn new() -> Self {
         Self {
@@ -85,23 +122,23 @@ impl Request {
             body: Body { kind: KIND_REQ },
         }
     }
-    pub fn source_addr(&self) -> Option<Box<[u8]>> {
-        handler::source_addr()
+    pub fn source_addr(&self) -> Bytes {
+        Bytes(handler::source_addr().unwrap_or_default())
     }
     /// the version of the http-request
-    pub fn version(&self) -> Option<Box<[u8]>> {
-        handler::version()
+    pub fn version(&self) -> Bytes {
+        Bytes(handler::version().unwrap_or_default())
     }
-    pub fn method(&self) -> Option<Box<[u8]>> {
-        handler::method()
+    pub fn method(&self) -> Bytes {
+        Bytes(handler::method().unwrap_or_default())
     }
-    pub fn set_method(&self, method: &[u8]) {
+    pub fn set_method(&self, method: &Bytes) {
         handler::set_method(method);
     }
-    pub fn uri(&self) -> Option<Box<[u8]>> {
-        handler::uri()
+    pub fn uri(&self) -> Bytes {
+        Bytes(handler::uri().unwrap_or_default())
     }
-    pub fn set_uri(&self, uri: &[u8]) {
+    pub fn set_uri(&self, uri: &Bytes) {
         handler::set_uri(uri);
     }
     pub fn header(&self) -> &Header {
@@ -114,6 +151,12 @@ impl Request {
 pub struct Response {
     header: Header,
     body: Body,
+}
+
+impl Default for Response {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Response {
@@ -134,5 +177,21 @@ impl Response {
     }
     pub fn body(&self) -> &Body {
         &self.body
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bytes_empty() {
+        let b = Bytes(b"".to_vec().into_boxed_slice());
+        assert_eq!(b.is_empty(), true);
+    }
+    #[test]
+    fn test_bytes_eq() {
+        let b = Bytes(b"test".to_vec().into_boxed_slice());
+        assert_eq!(b, Bytes::from("test"));
     }
 }

@@ -107,16 +107,14 @@ pub fn add_header_value(kind: i32, name: &[u8], value: &[u8]) {
 
 pub fn source_addr() -> Option<Box<[u8]>> {
     let buffer = memory::buffer();
-    match unsafe { http_handler::get_source_addr(buffer.data.as_ptr(), buffer.size()) } {
-        size => to_bytes(buffer.data.as_slice(), size),
-    }
+    let size = unsafe { http_handler::get_source_addr(buffer.data.as_ptr(), buffer.size()) };
+    extract_bytes(buffer.data.as_slice(), size)
 }
 
 pub fn method() -> Option<Box<[u8]>> {
     let buffer = memory::buffer();
-    match unsafe { http_handler::get_method(buffer.data.as_ptr(), buffer.size()) } {
-        size => to_bytes(buffer.data.as_slice(), size),
-    }
+    let size = unsafe { http_handler::get_method(buffer.data.as_ptr(), buffer.size()) };
+    extract_bytes(buffer.data.as_slice(), size)
 }
 
 pub fn set_method(method: &[u8]) {
@@ -129,15 +127,13 @@ pub fn set_uri(uri: &[u8]) {
 
 pub fn version() -> Option<Box<[u8]>> {
     let buffer = memory::buffer();
-    match unsafe { http_handler::get_protocol_version(buffer.data.as_ptr(), buffer.size()) } {
-        size => to_bytes(buffer.data.as_slice(), size),
-    }
+    let size = unsafe { http_handler::get_protocol_version(buffer.data.as_ptr(), buffer.size()) };
+    extract_bytes(buffer.data.as_slice(), size)
 }
 pub fn uri() -> Option<Box<[u8]>> {
     let buffer = memory::buffer();
-    match unsafe { http_handler::get_uri(buffer.data.as_ptr(), buffer.size()) } {
-        size => to_bytes(buffer.data.as_slice(), size),
-    }
+    let size = unsafe { http_handler::get_uri(buffer.data.as_ptr(), buffer.size()) };
+    extract_bytes(buffer.data.as_slice(), size)
 }
 
 pub fn status_code() -> i32 {
@@ -156,7 +152,7 @@ pub fn body(kind: i32) -> Option<Box<[u8]>> {
     while !eof {
         (eof, size) =
             eof_size(unsafe { http_handler::read_body(kind, buffer.data.as_ptr(), buffer.size()) });
-        if let Some(vec) = to_bytes(buffer.data.as_slice(), size) {
+        if let Some(vec) = extract_bytes(buffer.data.as_slice(), size) {
             out.push(vec)
         }
     }
@@ -169,7 +165,7 @@ pub fn write_body(kind: i32, body: &[u8]) {
     }
 }
 
-fn to_bytes(buf: &[u8], size: i32) -> Option<Box<[u8]>> {
+fn extract_bytes(buf: &[u8], size: i32) -> Option<Box<[u8]>> {
     match size {
         0 => None,
         size if buf.len() <= size as usize => {
@@ -225,7 +221,7 @@ mod tests {
     #[test]
     fn test_to_string() {
         let buf = b"test";
-        let r = to_bytes(buf, buf.len() as i32);
+        let r = extract_bytes(buf, buf.len() as i32);
         assert_eq!(r, Some(b"test".to_vec().into_boxed_slice()))
     }
 }

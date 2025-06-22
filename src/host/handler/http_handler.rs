@@ -1,6 +1,6 @@
 //! Definition of the host functions
 //! https://http-wasm.io/http-handler-abi/
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 #[link(wasm_import_module = "http_handler")]
 unsafe extern "C" {
     pub(crate) unsafe fn log(level: i32, message: *const u8, message_len: i32);
