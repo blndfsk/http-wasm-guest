@@ -4,18 +4,20 @@ use http_wasm_guest::{
     register,
 };
 
-struct Plugin {}
+struct Plugin;
 
 impl Guest for Plugin {
     fn handle_request(&self, request: Request, response: Response) -> (bool, i32) {
-        if request.uri().starts_with(b"/.config") {
-            response.set_status(403);
-            return (false, 0);
-        }
-        (true, 0)
+        return match request.uri() {
+            bytes if bytes.starts_with(b"/.config") => {
+                response.set_status(403);
+                (false, 0)
+            }
+            _ => (true, 0),
+        };
     }
 }
 fn main() {
-    let plugin = Plugin {};
+    let plugin = Plugin;
     register(plugin);
 }

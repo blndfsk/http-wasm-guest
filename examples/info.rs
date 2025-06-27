@@ -4,7 +4,7 @@ use http_wasm_guest::{
     info, register,
 };
 
-struct Plugin {}
+struct Plugin;
 
 impl Guest for Plugin {
     fn handle_request(&self, request: Request, _response: Response) -> (bool, i32) {
@@ -13,6 +13,6 @@ impl Guest for Plugin {
     }
 }
 fn main() {
-    let plugin = Plugin {};
+    let plugin = Plugin;
     register(plugin);
 }
