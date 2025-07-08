@@ -26,22 +26,23 @@ unsafe extern "C" {
 
 #[cfg(test)]
 pub mod overrides {
+
     #[unsafe(no_mangle)]
     pub extern "C" fn get_status_code() -> i32 {
         200
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_config(_buf: *const u8, buf_limit: i32) -> i32 {
-        buf_limit
+    pub extern "C" fn get_config(buf: *mut u8, _buf_limit: i32) -> i32 {
+        let m = br#"{ "config" : "test",}"#;
+        unsafe { buf.copy_from_nonoverlapping(m.as_ptr(), m.len()) };
+        m.len() as i32
     }
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_method(_buf: *const u8, buf_limit: i32) -> i32 {
-        buf_limit
-    }
-    #[unsafe(no_mangle)]
-    pub extern "C" fn set_method(_buf: *const u8, buf_limit: i32) -> i32 {
-        buf_limit
+    pub extern "C" fn get_method(buf: *mut u8, _buf_limit: i32) -> i32 {
+        let m = b"GET";
+        unsafe { buf.copy_from_nonoverlapping(m.as_ptr(), m.len()) };
+        m.len() as i32
     }
     #[unsafe(no_mangle)]
     pub extern "C" fn get_protocol_version(_ptr: *const u8, message_len: i32) -> i32 {

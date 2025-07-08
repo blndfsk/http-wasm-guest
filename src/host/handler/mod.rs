@@ -1,3 +1,5 @@
+use crate::host::handler::memory::Buffer;
+
 mod http_handler;
 mod memory;
 
@@ -11,8 +13,8 @@ pub fn log_enabled(level: i32) -> bool {
 
 pub fn get_config() -> Vec<u8> {
     let buffer = memory::buffer();
-    match unsafe { http_handler::get_config(buffer.data.as_ptr(), buffer.size()) } {
-        size if size <= buffer.size() => buffer.data.as_slice()[..size as usize].to_vec(),
+    match unsafe { http_handler::get_config(buffer.data.as_ptr(), buffer.len()) } {
+        size if size <= buffer.len() => buffer.data.as_slice()[..size as usize].to_vec(),
         capacity => {
             let mut buf = Vec::with_capacity(capacity as usize);
             let vec = unsafe {
@@ -38,11 +40,11 @@ pub fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
             name.as_ptr(),
             name.len() as i32,
             buffer.data.as_ptr(),
-            buffer.size(),
+            buffer.len(),
         )
     };
     let (count, len) = split_i64(count_len);
-    if len <= buffer.size() {
+    if len <= buffer.len() {
         return handle_values(buffer.data.as_slice(), count, len);
     }
 
@@ -61,9 +63,9 @@ pub fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
 pub fn header_names(kind: i32) -> Vec<Box<[u8]>> {
     let buffer = memory::buffer();
     let count_len =
-        unsafe { http_handler::get_header_names(kind, buffer.data.as_ptr(), buffer.size()) };
+        unsafe { http_handler::get_header_names(kind, buffer.data.as_ptr(), buffer.len()) };
     let (count, len) = split_i64(count_len);
-    if len <= buffer.size() {
+    if len <= buffer.len() {
         return handle_values(buffer.data.as_slice(), count, len);
     }
     let mut buf = Vec::with_capacity(len as usize);
@@ -105,16 +107,16 @@ pub fn add_header_value(kind: i32, name: &[u8], value: &[u8]) {
     };
 }
 
-pub fn source_addr() -> Option<Box<[u8]>> {
+pub fn source_addr() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { http_handler::get_source_addr(buffer.data.as_ptr(), buffer.size()) };
-    extract_bytes(buffer.data.as_slice(), size)
+    let size = unsafe { http_handler::get_source_addr(buffer.data.as_ptr(), buffer.len()) };
+    extract_bytes(buffer, size)
 }
 
-pub fn method() -> Option<Box<[u8]>> {
+pub fn method() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { http_handler::get_method(buffer.data.as_ptr(), buffer.size()) };
-    extract_bytes(buffer.data.as_slice(), size)
+    let size = unsafe { http_handler::get_method(buffer.data.as_ptr(), buffer.len()) };
+    extract_bytes(buffer, size)
 }
 
 pub fn set_method(method: &[u8]) {
@@ -125,15 +127,15 @@ pub fn set_uri(uri: &[u8]) {
     unsafe { http_handler::set_uri(uri.as_ptr(), uri.len() as i32) };
 }
 
-pub fn version() -> Option<Box<[u8]>> {
+pub fn version() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { http_handler::get_protocol_version(buffer.data.as_ptr(), buffer.size()) };
-    extract_bytes(buffer.data.as_slice(), size)
+    let size = unsafe { http_handler::get_protocol_version(buffer.data.as_ptr(), buffer.len()) };
+    extract_bytes(buffer, size)
 }
-pub fn uri() -> Option<Box<[u8]>> {
+pub fn uri() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { http_handler::get_uri(buffer.data.as_ptr(), buffer.size()) };
-    extract_bytes(buffer.data.as_slice(), size)
+    let size = unsafe { http_handler::get_uri(buffer.data.as_ptr(), buffer.len()) };
+    extract_bytes(buffer, size)
 }
 
 pub fn status_code() -> i32 {
@@ -144,19 +146,17 @@ pub fn set_status_code(code: i32) {
     unsafe { http_handler::set_status_code(code) }
 }
 
-pub fn body(kind: i32) -> Option<Box<[u8]>> {
+pub fn body(kind: i32) -> Box<[u8]> {
     let buffer = memory::buffer();
     let mut eof = false;
     let mut size;
     let mut out = Vec::new();
     while !eof {
         (eof, size) =
-            eof_size(unsafe { http_handler::read_body(kind, buffer.data.as_ptr(), buffer.size()) });
-        if let Some(vec) = extract_bytes(buffer.data.as_slice(), size) {
-            out.push(vec)
-        }
+            eof_size(unsafe { http_handler::read_body(kind, buffer.data.as_ptr(), buffer.len()) });
+        out.push(&buffer.data[0..size as usize])
     }
-    Some(out.concat().into_boxed_slice())
+    out.concat().into_boxed_slice()
 }
 
 pub fn write_body(kind: i32, body: &[u8]) {
@@ -165,14 +165,8 @@ pub fn write_body(kind: i32, body: &[u8]) {
     }
 }
 
-fn extract_bytes(buf: &[u8], size: i32) -> Option<Box<[u8]>> {
-    match size {
-        0 => None,
-        size if buf.len() <= size as usize => {
-            Some(buf[0..size as usize].as_ref().to_vec().into_boxed_slice())
-        }
-        _ => None,
-    }
+fn extract_bytes(buffer: &Buffer, size: i32) -> Box<[u8]> {
+    buffer.data[0..size as usize].to_vec().into_boxed_slice()
 }
 
 fn handle_values(buf: &[u8], count: i32, len: i32) -> Vec<Box<[u8]>> {
@@ -219,9 +213,24 @@ mod tests {
     }
 
     #[test]
-    fn test_to_string() {
-        let buf = b"test";
-        let r = extract_bytes(buf, buf.len() as i32);
-        assert_eq!(r, Some(b"test".to_vec().into_boxed_slice()))
+    fn test_extract() {
+        let c = b"test";
+        let buf = &memory::Buffer::from_vec(c);
+        let r = extract_bytes(buf, c.len() as i32);
+        assert_eq!(b"test", r.as_ref());
+    }
+    #[test]
+    fn test_extract_empty() {
+        let c = b"";
+        let buf = &memory::Buffer::from_vec(c);
+        let r = extract_bytes(buf, c.len() as i32);
+        assert!(r.is_empty());
+    }
+
+    #[test]
+    fn test_method() {
+        let m = method();
+        assert!(!m.is_empty());
+        assert_eq!(b"GET", m.as_ref());
     }
 }

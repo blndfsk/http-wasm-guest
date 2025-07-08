@@ -67,7 +67,7 @@ pub struct Body {
 }
 impl Body {
     pub fn read(&self) -> Bytes {
-        Bytes(handler::body(self.kind).unwrap_or_default())
+        Bytes(handler::body(self.kind))
     }
     pub fn write(&self, body: &Bytes) {
         handler::write_body(self.kind, body);
@@ -93,20 +93,20 @@ impl Request {
         }
     }
     pub fn source_addr(&self) -> Bytes {
-        Bytes(handler::source_addr().unwrap_or_default())
+        Bytes(handler::source_addr())
     }
     /// the version of the http-request
     pub fn version(&self) -> Bytes {
-        Bytes(handler::version().unwrap_or_default())
+        Bytes(handler::version())
     }
     pub fn method(&self) -> Bytes {
-        Bytes(handler::method().unwrap_or_default())
+        Bytes(handler::method())
     }
     pub fn set_method(&self, method: &Bytes) {
         handler::set_method(method);
     }
     pub fn uri(&self) -> Bytes {
-        Bytes(handler::uri().unwrap_or_default())
+        Bytes(handler::uri())
     }
     pub fn set_uri(&self, uri: &Bytes) {
         handler::set_uri(uri);
@@ -159,9 +159,20 @@ mod tests {
         let b = Bytes(b"".to_vec().into_boxed_slice());
         assert_eq!(b.is_empty(), true);
     }
+
     #[test]
-    fn test_bytes_eq() {
+    fn test_bytes() {
+        let val = "test";
         let b = Bytes(b"test".to_vec().into_boxed_slice());
-        assert_eq!(b, Bytes::from("test"));
+        assert_eq!(val, b.as_str());
+        assert_eq!(val, format!("{}", b));
+        assert_eq!(Bytes::from(val), b);
+    }
+
+    #[test]
+    fn test_req() {
+        let r = Request::new();
+        let sut = r.method();
+        assert_eq!("GET", sut.as_str());
     }
 }

@@ -1,41 +1,56 @@
-pub enum Level {
-    Debug = -1,
-    Info = 0,
-    Warn = 1,
-    Error = 2,
-    None = 3,
-}
+use log::{Level, Log, Metadata, Record, SetLoggerError};
+
 use super::handler;
 
-///writes a message to the host's logs at the given level.
-pub fn write(level: Level, message: &str) {
-    if message.is_empty() {
-        return;
-    }
-    handler::log(level as i32, message.as_bytes());
+static LOGGER: HostLogger = HostLogger {};
+static LVL: [i32; 6] = [3, 2, 1, 0, -1, -1];
+
+fn map(level: Level) -> i32 {
+    LVL[level as usize]
 }
-pub fn enabled(level: Level) -> bool {
-    handler::log_enabled(level as i32)
+struct HostLogger {}
+
+impl Log for HostLogger {
+    #[inline]
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= log::max_level() && handler::log_enabled(map(metadata.level()))
+    }
+
+    fn log(&self, record: &Record) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+        handler::log(
+            map(record.metadata().level()),
+            format!("{}", record.args()).as_bytes(),
+        );
+    }
+
+    fn flush(&self) {}
 }
 
-#[macro_export]
-macro_rules! debug {
-    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Debug, $($arg)+))
+#[inline]
+pub fn init_with_level(level: Level) -> Result<(), SetLoggerError> {
+    log::set_logger(&LOGGER)?;
+    log::set_max_level(level.to_level_filter());
+    Ok(())
 }
-#[macro_export]
-macro_rules! info {
-    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Info, $($arg)+))
+
+#[inline]
+pub fn init() -> Result<(), SetLoggerError> {
+    init_with_level(Level::Info)
 }
-#[macro_export]
-macro_rules! warn {
-    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Warn, $($arg)+))
-}
-#[macro_export]
-macro_rules! error {
-    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Error, $($arg)+))
-}
-#[macro_export]
-macro_rules! log {
-    // log!(Level::Info, "a log event {}", param1)
-    ($lvl:expr, $($arg:tt)+) => { $crate::host::log::write($lvl, format!($($arg)+).as_str()); };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_map() {
+        assert_eq!(-1, map(Level::Trace));
+        assert_eq!(-1, map(Level::Debug));
+        assert_eq!(0, map(Level::Info));
+        assert_eq!(1, map(Level::Warn));
+        assert_eq!(2, map(Level::Error));
+    }
 }

@@ -1,8 +1,9 @@
 use http_wasm_guest::{
     Guest,
-    host::{Request, Response},
-    info, register,
+    host::{self, Request, Response},
+    register,
 };
+use log::info;
 
 struct Plugin;
 
@@ -13,6 +14,7 @@ impl Guest for Plugin {
     }
 }
 fn main() {
+    host::log::init().expect("error initializing logger");
     let plugin = Plugin;
     register(plugin);
 }
