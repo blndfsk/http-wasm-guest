@@ -5,7 +5,6 @@ This library implements the [Wasm Guest ABI](https://http-wasm.io/http-handler-a
 
 The main use is for writing traefik-plugins in rust.
 
-
 - Initial reference code from https://github.com/elisasre/http-wasm-rust/
 - API inspired by https://github.com/http-wasm/http-wasm-guest-tinygo
 

@@ -1,10 +1,9 @@
 //! library implementing the [Guest ABI](https://http-wasm.io/http-handler-abi/) for interfacing with
 //! [http-wasm](https://github.com/http-wasm)
-use std::{ops::BitOr, sync::OnceLock};
+use std::sync::OnceLock;
 
 use host::{Request, Response};
 
-pub mod feature;
 pub mod host;
 
 struct Handler {
@@ -14,16 +13,6 @@ unsafe impl Send for Handler {}
 unsafe impl Sync for Handler {}
 
 static GUEST: OnceLock<Handler> = OnceLock::new();
-
-#[derive(Debug, PartialEq)]
-pub struct Feature(pub i32);
-impl BitOr for Feature {
-    type Output = Feature;
-
-    fn bitor(self, rhs: Self) -> Feature {
-        Feature(self.0 | rhs.0)
-    }
-}
 
 pub trait Guest {
     fn handle_request(&self, _request: Request, _response: Response) -> (bool, i32) {
@@ -57,26 +46,4 @@ fn http_response(_req_ctx: i32, _is_error: i32) {
             .guest
             .handle_response(Request::new(), Response::new())
     };
-}
-
-#[macro_export]
-macro_rules! debug {
-    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Debug, $($arg)+))
-}
-#[macro_export]
-macro_rules! info {
-    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Info, $($arg)+))
-}
-#[macro_export]
-macro_rules! warn {
-    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Warn, $($arg)+))
-}
-#[macro_export]
-macro_rules! error {
-    ($($arg:tt)+) => ($crate::log!($crate::host::log::Level::Error, $($arg)+))
-}
-#[macro_export]
-macro_rules! log {
-    // log!(Level::Info, "a log event {}", param1)
-    ($lvl:expr, $($arg:tt)+) => { $crate::host::log::write($lvl, format!($($arg)+).as_str()); };
 }

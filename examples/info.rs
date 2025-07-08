@@ -8,7 +8,7 @@ struct Plugin;
 
 impl Guest for Plugin {
     fn handle_request(&self, request: Request, _response: Response) -> (bool, i32) {
-        info!("uri: {}", request.uri());
+        info!("{} {}", request.method(), request.uri());
         (true, 0)
     }
 }

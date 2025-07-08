@@ -1,41 +1,11 @@
 use std::{fmt::Display, ops::Deref, string::FromUtf8Error};
 
+pub mod feature;
 mod handler;
+pub mod log;
 
 pub fn get_config() -> Result<String, FromUtf8Error> {
     String::from_utf8(handler::get_config())
-}
-
-/**
- * enables the specified Features on the host.
- *
- * https://http-wasm.io/http-handler-abi/#enable_features
- *
- */
-pub fn enable_feature(feature: crate::Feature) -> i32 {
-    handler::enable_feature(feature.0)
-}
-
-pub mod log {
-    pub enum Level {
-        Debug = -1,
-        Info = 0,
-        Warn = 1,
-        Error = 2,
-        None = 3,
-    }
-    use super::handler;
-
-    ///writes a message to the host's logs at the given level.
-    pub fn write(level: Level, message: &str) {
-        if message.is_empty() {
-            return;
-        }
-        handler::log(level as i32, message.as_bytes());
-    }
-    pub fn enabled(level: Level) -> bool {
-        handler::log_enabled(level as i32)
-    }
 }
 
 static KIND_REQ: i32 = 0;
