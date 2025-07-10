@@ -35,6 +35,11 @@ impl From<&str> for Bytes {
         Self(value.as_bytes().to_vec().into_boxed_slice())
     }
 }
+impl From<&[u8]> for Bytes {
+    fn from(value: &[u8]) -> Self {
+        Self(value.to_vec().into_boxed_slice())
+    }
+}
 
 pub struct Header {
     kind: i32,
@@ -161,14 +166,18 @@ mod tests {
     }
 
     #[test]
-    fn test_bytes() {
+    fn test_bytes_from_str() {
         let val = "test";
-        let b = Bytes(b"test".to_vec().into_boxed_slice());
+        let b = Bytes::from(val);
         assert_eq!(val, b.as_str());
         assert_eq!(val, format!("{}", b));
-        assert_eq!(Bytes::from(val), b);
     }
-
+    #[test]
+    fn test_bytes_from_u8() {
+        let val = b"test";
+        let b = Bytes::from(val.as_slice());
+        assert_eq!(val, b.as_ref());
+    }
     #[test]
     fn test_req() {
         let r = Request::new();

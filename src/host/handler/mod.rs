@@ -217,7 +217,7 @@ mod tests {
         let c = b"test";
         let buf = &memory::Buffer::from_vec(c);
         let r = extract_bytes(buf, c.len() as i32);
-        assert_eq!(b"test", r.as_ref());
+        assert_eq!(c, r.as_ref());
     }
     #[test]
     fn test_extract_empty() {
@@ -230,7 +230,6 @@ mod tests {
     #[test]
     fn test_method() {
         let m = method();
-        assert!(!m.is_empty());
         assert_eq!(b"GET", m.as_ref());
     }
 }
