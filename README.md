@@ -1,4 +1,5 @@
 # http-wasm Guest Library
+[![Build](https://github.com/blndfsk/http-wasm-guest/actions/workflows/build.yml/badge.svg)](https://github.com/blndfsk/http-wasm-guest/actions/workflows/build.yml)
 
 This library implements the [Wasm Guest ABI](https://http-wasm.io/http-handler-abi/), used to interface with 
 [http-wasm](https://github.com/http-wasm). 
