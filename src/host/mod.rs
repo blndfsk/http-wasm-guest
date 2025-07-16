@@ -1,4 +1,10 @@
-use std::{fmt::Display, ops::Deref, string::FromUtf8Error};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+    ops::Deref,
+    str::{Utf8Error, from_utf8},
+    string::FromUtf8Error,
+};
 
 pub mod feature;
 mod handler;
@@ -11,11 +17,11 @@ pub fn get_config() -> Result<String, FromUtf8Error> {
 static KIND_REQ: i32 = 0;
 static KIND_RES: i32 = 1;
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub struct Bytes(Box<[u8]>);
 impl Bytes {
-    pub fn as_str(&self) -> &str {
-        std::str::from_utf8(&self.0).unwrap_or_default()
+    pub fn to_str(&self) -> Result<&str, Utf8Error> {
+        from_utf8(&self.0)
     }
 }
 impl Deref for Bytes {
@@ -27,7 +33,11 @@ impl Deref for Bytes {
 }
 impl Display for Bytes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
+        let s = match self.to_str() {
+            Ok(res) => res,
+            Err(err) => &err.to_string(),
+        };
+        write!(f, "{}", &s)
     }
 }
 impl From<&str> for Bytes {
@@ -65,6 +75,15 @@ impl Header {
     }
     pub fn remove(&self, name: &Bytes) {
         handler::remove_header(self.kind, name);
+    }
+    pub fn get(&self) -> HashMap<Bytes, Vec<Bytes>> {
+        let headers = self.names();
+        let mut result = HashMap::with_capacity(headers.len());
+        for key in headers {
+            let values = self.values(&key);
+            result.insert(key, values);
+        }
+        result
     }
 }
 pub struct Body {
@@ -169,7 +188,7 @@ mod tests {
     fn test_bytes_from_str() {
         let val = "test";
         let b = Bytes::from(val);
-        assert_eq!(val, b.as_str());
+        assert_eq!(val, b.to_str().unwrap());
         assert_eq!(val, format!("{}", b));
     }
     #[test]
@@ -178,10 +197,51 @@ mod tests {
         let b = Bytes::from(val.as_slice());
         assert_eq!(val, b.as_ref());
     }
+
+    #[test]
+    fn test_bytes_to_str_invalid() {
+        let val = b"\xFF\xFF";
+        let b = Bytes::from(val.as_slice());
+        assert!(b.to_str().is_err());
+    }
     #[test]
     fn test_req() {
         let r = Request::new();
         let sut = r.method();
-        assert_eq!("GET", sut.as_str());
+        assert_eq!("GET", sut.to_str().unwrap());
+    }
+
+    #[test]
+    fn test_header_names() {
+        let r = Request::new();
+        let sut = r.header().names();
+        assert_eq!(2, sut.len());
+        assert!(sut.contains(&Bytes::from("X-FOO")));
+    }
+    #[test]
+    fn test_header_values() {
+        let r = Request::new();
+        let sut = r.header().values(&Bytes::from("value"));
+        assert!(!sut.is_empty());
+        assert!(sut.contains(&Bytes::from("test1")));
+    }
+    #[test]
+    fn test_header_get() {
+        let r = Request::new();
+        let sut = r.header().get();
+        let h1 = Bytes::from("X-FOO");
+        let h2 = Bytes::from("x-bar");
+        assert!(!sut.is_empty());
+        assert!(sut.contains_key(&h1));
+        assert!(sut.contains_key(&h2));
+        assert_eq!(sut.len(), 2);
+        assert_eq!(sut.get(&h1), Some(&vec!(Bytes::from("test1"))));
+    }
+    #[test]
+    fn test_body() {
+        let r = Response::new();
+        let sut = r.body().read();
+        assert!(!sut.is_empty());
+        assert!(sut.starts_with(b"<html>"));
     }
 }
