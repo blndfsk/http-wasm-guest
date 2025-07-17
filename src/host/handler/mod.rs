@@ -12,7 +12,7 @@ pub fn log_enabled(level: i32) -> bool {
 pub fn get_config() -> Vec<u8> {
     let buffer = memory::buffer();
     match unsafe { http_handler::get_config(buffer.as_ptr(), buffer.len()) } {
-        size if size <= buffer.len() => buffer.as_slice(size).to_vec(),
+        size if size <= buffer.len() => buffer.as_subslice(size).to_vec(),
         capacity => {
             let mut buf = Vec::with_capacity(capacity as usize);
             let vec = unsafe {
@@ -43,7 +43,7 @@ pub fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
     };
     let (count, len) = split_i64(count_len);
     if len <= buffer.len() {
-        return split(buffer, count, len);
+        return split(buffer.as_slice(), count, len);
     }
 
     let mut buf = Vec::with_capacity(len as usize);
@@ -63,7 +63,7 @@ pub fn header_names(kind: i32) -> Vec<Box<[u8]>> {
     let count_len = unsafe { http_handler::get_header_names(kind, buffer.as_ptr(), buffer.len()) };
     let (count, len) = split_i64(count_len);
     if len <= buffer.len() {
-        return split(buffer, count, len);
+        return split(buffer.as_slice(), count, len);
     }
     let mut buf = Vec::with_capacity(len as usize);
     let vec = unsafe {
@@ -151,7 +151,7 @@ pub fn body(kind: i32) -> Box<[u8]> {
     while !eof {
         (eof, size) =
             eof_size(unsafe { http_handler::read_body(kind, buffer.as_ptr(), buffer.len()) });
-        out.push(buffer.as_slice(size));
+        out.push(buffer.as_subslice(size));
     }
     out.concat().into_boxed_slice()
 }

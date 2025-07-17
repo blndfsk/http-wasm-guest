@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::LazyLock};
+use std::sync::LazyLock;
 
 static BUFFER: LazyLock<Buffer> = LazyLock::new(Buffer::new);
 const SIZE: usize = 2048;
@@ -17,11 +17,14 @@ impl Buffer {
     pub fn as_ptr(&self) -> *const u8 {
         self.data.as_ptr()
     }
-    pub fn as_slice(&self, size: i32) -> &[u8] {
+    pub fn as_slice(&self) -> &[u8] {
+        &self.data
+    }
+    pub fn as_subslice(&self, size: i32) -> &[u8] {
         &self.data[0..size as usize]
     }
     pub fn to_boxed_slice(&self, size: i32) -> Box<[u8]> {
-        self.as_slice(size).to_vec().into_boxed_slice()
+        self.as_subslice(size).to_vec().into_boxed_slice()
     }
     #[cfg(test)]
     pub fn from_vec(data: &[u8]) -> Buffer {
@@ -30,13 +33,7 @@ impl Buffer {
         Self { data: buffer }
     }
 }
-impl Deref for Buffer {
-    type Target = [u8];
 
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
 pub(crate) fn buffer() -> &'static Buffer {
     &BUFFER
 }
@@ -48,15 +45,15 @@ mod tests {
     #[test]
     fn test_as_slice() {
         let c = b"test";
-        let buf = &Buffer::from_vec(c);
-        let r = buf.as_slice(c.len() as i32);
+        let buf = Buffer::from_vec(c);
+        let r = buf.as_subslice(c.len() as i32);
         assert_eq!(c, r.as_ref());
     }
     #[test]
     fn test_as_slice_empty() {
         let c = b"";
-        let buf = &Buffer::from_vec(c);
-        let r = buf.as_slice(c.len() as i32);
+        let buf = Buffer::from_vec(c);
+        let r = buf.as_subslice(c.len() as i32);
         assert!(r.is_empty());
     }
 }

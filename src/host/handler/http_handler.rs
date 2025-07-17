@@ -35,18 +35,18 @@ pub mod overrides {
     #[unsafe(no_mangle)]
     pub extern "C" fn get_config(buf: *mut u8, _buf_limit: i32) -> i32 {
         let m = br#"{ "config" : "test",}"#;
-        unsafe { buf.copy_from_nonoverlapping(m.as_ptr(), m.len()) };
+        unsafe { buf.copy_from(m.as_ptr(), m.len()) };
         m.len() as i32
     }
     #[unsafe(no_mangle)]
     pub extern "C" fn get_method(buf: *mut u8, _buf_limit: i32) -> i32 {
         let m = b"GET";
-        unsafe { buf.copy_from_nonoverlapping(m.as_ptr(), m.len()) };
+        unsafe { buf.copy_from(m.as_ptr(), m.len()) };
         m.len() as i32
     }
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_protocol_version(_ptr: *const u8, message_len: i32) -> i32 {
-        message_len
+    pub extern "C" fn get_protocol_version(_ptr: *const u8, _message_len: i32) -> i32 {
+        2
     }
 
     #[unsafe(no_mangle)]
