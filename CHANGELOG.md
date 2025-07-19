@@ -1,4 +1,12 @@
 
+## v0.6.1 
+all setters now accept the more generic type ```&[u8]```. 
+ ```rust
+let header = request.header();
+header.add(&Bytes::from("X-Foo"), &Bytes::from("foo"));
+header.add(b"X-Bar", b"bar"); // this is now possible
+```        
+
 ## v0.6.0
 ### New
 #### Header

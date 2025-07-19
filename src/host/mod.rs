@@ -61,19 +61,19 @@ impl Header {
             .map(|h| Bytes(h.clone()))
             .collect()
     }
-    pub fn values(&self, name: &Bytes) -> Vec<Bytes> {
+    pub fn values(&self, name: &[u8]) -> Vec<Bytes> {
         handler::header_values(self.kind, name)
             .iter()
             .map(|h| Bytes(h.clone()))
             .collect()
     }
-    pub fn set(&self, name: &Bytes, value: &Bytes) {
+    pub fn set(&self, name: &[u8], value: &[u8]) {
         handler::set_header(self.kind, name, value);
     }
-    pub fn add(&self, name: &Bytes, value: &Bytes) {
+    pub fn add(&self, name: &[u8], value: &[u8]) {
         handler::add_header_value(self.kind, name, value);
     }
-    pub fn remove(&self, name: &Bytes) {
+    pub fn remove(&self, name: &[u8]) {
         handler::remove_header(self.kind, name);
     }
     pub fn get(&self) -> HashMap<Bytes, Vec<Bytes>> {
@@ -93,7 +93,7 @@ impl Body {
     pub fn read(&self) -> Bytes {
         Bytes(handler::body(self.kind))
     }
-    pub fn write(&self, body: &Bytes) {
+    pub fn write(&self, body: &[u8]) {
         handler::write_body(self.kind, body);
     }
 }
@@ -126,13 +126,13 @@ impl Request {
     pub fn method(&self) -> Bytes {
         Bytes(handler::method())
     }
-    pub fn set_method(&self, method: &Bytes) {
+    pub fn set_method(&self, method: &[u8]) {
         handler::set_method(method);
     }
     pub fn uri(&self) -> Bytes {
         Bytes(handler::uri())
     }
-    pub fn set_uri(&self, uri: &Bytes) {
+    pub fn set_uri(&self, uri: &[u8]) {
         handler::set_uri(uri);
     }
     pub fn header(&self) -> &Header {
@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_bytes_empty() {
-        let b = Bytes(b"".to_vec().into_boxed_slice());
+        let b = Bytes::from("");
         assert_eq!(b.is_empty(), true);
     }
 
