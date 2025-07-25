@@ -1,8 +1,11 @@
+#![allow(clippy::needless_doctest_main)]
+#![warn(missing_docs)]
+
 //! A Rust library for implementing HTTP WebAssembly guest plugins.
 //!
 //! This library provides a complete implementation of the [http-wasm Guest ABI](https://http-wasm.io/http-handler-abi/)
 //! for building WebAssembly modules that can process HTTP requests and responses in compatible host environments
-//! such as [Traefik](https://traefik.io/), [Envoy](https://www.envoyproxy.io/), and other http-wasm enabled proxies.
+//! such as [Traefik](https://traefik.io/) and other http-wasm enabled proxies.
 //!
 //! # Quick Start
 //!
@@ -82,8 +85,10 @@
 //! ```no_run
 //! use http_wasm_guest::{Guest, host, register};
 //! use log::info;
+//!
 //! struct MyPlugin;
 //! impl Guest for MyPlugin {}
+//!
 //! fn main() {
 //!     host::log::init().expect("Failed to initialize logger");
 //!     info!("Plugin starting up");
@@ -99,8 +104,6 @@
 //! # Examples
 //!
 //! See the `examples/` directory for complete plugin implementations.
-
-#![warn(missing_docs)]
 
 use std::sync::OnceLock;
 

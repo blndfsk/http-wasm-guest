@@ -1,5 +1,3 @@
-//! Definition of the host functions
-//! https://http-wasm.io/http-handler-abi/
 #[rustfmt::skip]
 #[link(wasm_import_module = "http_handler")]
 unsafe extern "C" {

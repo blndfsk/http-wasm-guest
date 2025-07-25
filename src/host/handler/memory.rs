@@ -47,7 +47,7 @@ mod tests {
         let c = b"test";
         let buf = Buffer::from_vec(c);
         let r = buf.as_subslice(c.len() as i32);
-        assert_eq!(c, r.as_ref());
+        assert_eq!(c, r);
     }
     #[test]
     fn test_as_slice_empty() {

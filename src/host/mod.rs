@@ -714,7 +714,7 @@ mod tests {
     #[test]
     fn test_bytes_empty() {
         let b = Bytes::from("");
-        assert_eq!(b.is_empty(), true);
+        assert!(b.is_empty());
     }
 
     #[test]
@@ -722,7 +722,7 @@ mod tests {
         let val = "test";
         let b = Bytes::from(val);
         assert_eq!(val, b.to_str().unwrap());
-        assert_eq!(val, format!("{}", b));
+        assert_eq!(val, format!("{b}"));
     }
     #[test]
     fn test_bytes_from_u8() {
