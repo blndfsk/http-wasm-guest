@@ -19,7 +19,7 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```no_run
 //! use http_wasm_guest::host::{Request, Response, get_config};
 //!
 //! fn process_request(request: Request, response: Response) {
@@ -63,7 +63,7 @@ pub mod log;
 ///
 /// # Example
 ///
-/// ```rust
+/// ```no_run
 /// use http_wasm_guest::host::get_config;
 ///
 /// match get_config() {
@@ -100,7 +100,7 @@ static KIND_RES: i32 = 1;
 /// assert_eq!(bytes.to_str().unwrap(), "hello world");
 ///
 /// // Create from byte slice
-/// let bytes = Bytes::from(b"binary data");
+/// let bytes = Bytes::from(b"binary data".as_slice());
 /// assert_eq!(bytes.len(), 11);
 ///
 /// // Display as string (handles invalid UTF-8 gracefully)
@@ -163,7 +163,7 @@ impl From<&[u8]> for Bytes {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```no_run
 /// use http_wasm_guest::host::Request;
 ///
 /// let request = Request::new();
@@ -193,7 +193,7 @@ impl Header {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// let request = Request::new();
     /// let header_names = request.header().names();
@@ -221,7 +221,7 @@ impl Header {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// let request = Request::new();
     /// let values = request.header().values(b"content-type");
@@ -245,7 +245,7 @@ impl Header {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Response;
     /// let response = Response::new();
     /// response.header().set(b"content-type", b"application/json");
@@ -265,7 +265,7 @@ impl Header {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Response;
     /// let response = Response::new();
     /// response.header().add(b"set-cookie", b"session=abc123");
@@ -283,7 +283,7 @@ impl Header {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// let request = Request::new();
     /// request.header().remove(b"authorization");
@@ -301,7 +301,7 @@ impl Header {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// let request = Request::new();
     /// let all_headers = request.header().get();
@@ -326,7 +326,7 @@ impl Header {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```no_run
 /// use http_wasm_guest::host::{Request, Response};
 ///
 /// let request = Request::new();
@@ -354,7 +354,7 @@ impl Body {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// let request = Request::new();
     /// let body_content = request.body().read();
@@ -372,7 +372,7 @@ impl Body {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Response;
     /// let response = Response::new();
     /// response.body().write(b"Hello, World!");
@@ -390,7 +390,7 @@ impl Body {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```no_run
 /// use http_wasm_guest::{Guest, host::{Request, Response}, register};
 ///
 /// struct MyPlugin;
@@ -444,7 +444,7 @@ impl Request {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// # let request = Request::new();
     /// let client_addr = request.source_addr();
@@ -462,7 +462,7 @@ impl Request {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// # let request = Request::new();
     /// let version = request.version();
@@ -480,7 +480,7 @@ impl Request {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// # let request = Request::new();
     /// let method = request.method();
@@ -500,7 +500,7 @@ impl Request {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// # let request = Request::new();
     /// request.set_method(b"POST");
@@ -517,7 +517,7 @@ impl Request {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// # let request = Request::new();
     /// let uri = request.uri();
@@ -535,7 +535,7 @@ impl Request {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// # let request = Request::new();
     /// request.set_uri(b"/api/v2/users");
@@ -552,7 +552,7 @@ impl Request {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// # let request = Request::new();
     /// let content_type = request.header().values(b"content-type");
@@ -569,7 +569,7 @@ impl Request {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Request;
     /// # let request = Request::new();
     /// let body_content = request.body().read();
@@ -586,7 +586,7 @@ impl Request {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```no_run
 /// use http_wasm_guest::{Guest, host::{Request, Response}, register};
 ///
 /// struct MyPlugin;
@@ -643,7 +643,7 @@ impl Response {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Response;
     /// # let response = Response::new();
     /// let status = response.status();
@@ -663,7 +663,7 @@ impl Response {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Response;
     /// # let response = Response::new();
     /// response.set_status(404); // Not Found
@@ -680,7 +680,7 @@ impl Response {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Response;
     /// # let response = Response::new();
     /// response.header().set(b"content-type", b"application/json");
@@ -697,7 +697,7 @@ impl Response {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```no_run
     /// # use http_wasm_guest::host::Response;
     /// # let response = Response::new();
     /// response.body().write(b"Hello, World!");

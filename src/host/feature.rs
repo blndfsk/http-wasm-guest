@@ -13,7 +13,7 @@
 //!
 //! Features should be enabled during module initialization, typically in your `main()` function:
 //!
-//! ```rust
+//! ```no_run
 //! use http_wasm_guest::host::feature::{enable, BufferRequest, BufferResponse};
 //!
 //! fn main() {
@@ -74,7 +74,7 @@ pub const Trailers: Feature = Feature(4);
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```no_run
 /// use http_wasm_guest::host::feature::{enable, BufferRequest, BufferResponse};
 ///
 /// // Enable a single feature
@@ -112,7 +112,7 @@ impl BitOr for Feature {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```no_run
 /// use http_wasm_guest::host::feature::{enable, BufferRequest, BufferResponse};
 ///
 /// fn main() {

@@ -1,4 +1,8 @@
 
+## v0.6.2
+
+Documentation
+
 ## v0.6.1 
 all setters now accept the more generic type ```&[u8]```. 
  ```rust

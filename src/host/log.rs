@@ -8,15 +8,16 @@
 //!
 //! Initialize logging early in your plugin's `main()` function:
 //!
-//! ```rust
-//! use http_wasm_guest::host::log;
+//! ```no_run
+//! use http_wasm_guest::host;
+//! use log::info;
 //!
 //! fn main() {
 //!     // Initialize with default Info level
-//!     log::init().expect("Failed to initialize logger");
+//!     host::log::init().expect("Failed to initialize logger");
 //!
 //!     // Or initialize with a specific level
-//!     log::init_with_level(log::Level::Debug).expect("Failed to initialize logger");
+//!     host::log::init_with_level(log::Level::Debug).expect("Failed to initialize logger");
 //!
 //!     // Now you can use standard Rust logging macros
 //!     log::info!("Plugin initialized");
@@ -89,7 +90,7 @@ impl Log for HostLogger {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```no_run
 /// use http_wasm_guest::host::log::init_with_level;
 /// use log::Level;
 ///
@@ -123,7 +124,7 @@ pub fn init_with_level(level: Level) -> Result<(), SetLoggerError> {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```no_run
 /// use http_wasm_guest::host::log::init;
 ///
 /// fn main() {

@@ -8,7 +8,7 @@
 //!
 //! Create a plugin by implementing the [`Guest`] trait and registering it:
 //!
-//! ```rust
+//! ```no_run
 //! use http_wasm_guest::{Guest, host::{Request, Response}, register};
 //!
 //! struct MyPlugin;
@@ -60,8 +60,12 @@
 //!
 //! Enable optional host features for advanced functionality:
 //!
-//! ```rust
+//! ```no_run
 //! use http_wasm_guest::host::feature::{enable, BufferRequest, BufferResponse};
+//! use http_wasm_guest::{Guest, register};
+//!
+//! struct MyPlugin;
+//! impl Guest for MyPlugin {}
 //!
 //! fn main() {
 //!     // Enable body buffering for modification
@@ -75,12 +79,14 @@
 //!
 //! Set up logging to debug your plugin:
 //!
-//! ```rust
-//! use http_wasm_guest::host::log;
-//!
+//! ```no_run
+//! use http_wasm_guest::{Guest, host, register};
+//! use log::info;
+//! struct MyPlugin;
+//! impl Guest for MyPlugin {}
 //! fn main() {
-//!     log::init().expect("Failed to initialize logger");
-//!     log::info!("Plugin starting up");
+//!     host::log::init().expect("Failed to initialize logger");
+//!     info!("Plugin starting up");
 //!
 //!     register(MyPlugin);
 //! }
@@ -125,7 +131,7 @@ static GUEST: OnceLock<Handler> = OnceLock::new();
 ///
 /// # Example
 ///
-/// ```rust
+/// ```no_run
 /// use http_wasm_guest::{Guest, host::{Request, Response}, register};
 ///
 /// struct MyPlugin;

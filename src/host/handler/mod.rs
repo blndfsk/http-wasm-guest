@@ -1,15 +1,15 @@
 mod http_handler;
 mod memory;
 
-pub fn log(level: i32, message: &[u8]) {
+pub(crate) fn log(level: i32, message: &[u8]) {
     unsafe { http_handler::log(level, message.as_ptr(), message.len() as i32) };
 }
 
-pub fn log_enabled(level: i32) -> bool {
+pub(crate) fn log_enabled(level: i32) -> bool {
     matches!(unsafe { http_handler::log_enabled(level) }, 1)
 }
 
-pub fn get_config() -> Vec<u8> {
+pub(crate) fn get_config() -> Vec<u8> {
     let buffer = memory::buffer();
     match unsafe { http_handler::get_config(buffer.as_ptr(), buffer.len()) } {
         size if size <= buffer.len() => buffer.as_subslice(size).to_vec(),
@@ -26,11 +26,11 @@ pub fn get_config() -> Vec<u8> {
     }
 }
 
-pub fn enable_feature(feature: i32) -> i32 {
+pub(crate) fn enable_feature(feature: i32) -> i32 {
     unsafe { http_handler::enable_features(feature) }
 }
 
-pub fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
+pub(crate) fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
     let buffer = memory::buffer();
     let count_len = unsafe {
         http_handler::get_header_values(
@@ -58,7 +58,7 @@ pub fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
     vec
 }
 
-pub fn header_names(kind: i32) -> Vec<Box<[u8]>> {
+pub(crate) fn header_names(kind: i32) -> Vec<Box<[u8]>> {
     let buffer = memory::buffer();
     let count_len = unsafe { http_handler::get_header_names(kind, buffer.as_ptr(), buffer.len()) };
     let (count, len) = split_i64(count_len);
@@ -76,11 +76,11 @@ pub fn header_names(kind: i32) -> Vec<Box<[u8]>> {
     vec
 }
 
-pub fn remove_header(kind: i32, name: &[u8]) {
+pub(crate) fn remove_header(kind: i32, name: &[u8]) {
     unsafe { http_handler::remove_header(kind, name.as_ptr(), name.len() as i32) }
 }
 
-pub fn set_header(kind: i32, name: &[u8], value: &[u8]) {
+pub(crate) fn set_header(kind: i32, name: &[u8], value: &[u8]) {
     unsafe {
         http_handler::set_header_value(
             kind,
@@ -92,7 +92,7 @@ pub fn set_header(kind: i32, name: &[u8], value: &[u8]) {
     };
 }
 
-pub fn add_header_value(kind: i32, name: &[u8], value: &[u8]) {
+pub(crate) fn add_header_value(kind: i32, name: &[u8], value: &[u8]) {
     unsafe {
         http_handler::add_header_value(
             kind,
@@ -104,46 +104,47 @@ pub fn add_header_value(kind: i32, name: &[u8], value: &[u8]) {
     };
 }
 
-pub fn source_addr() -> Box<[u8]> {
+pub(crate) fn source_addr() -> Box<[u8]> {
     let buffer = memory::buffer();
     let size = unsafe { http_handler::get_source_addr(buffer.as_ptr(), buffer.len()) };
     buffer.to_boxed_slice(size)
 }
 
-pub fn method() -> Box<[u8]> {
+pub(crate) fn method() -> Box<[u8]> {
     let buffer = memory::buffer();
     let size = unsafe { http_handler::get_method(buffer.as_ptr(), buffer.len()) };
     buffer.to_boxed_slice(size)
 }
 
-pub fn set_method(method: &[u8]) {
+pub(crate) fn set_method(method: &[u8]) {
     unsafe { http_handler::set_method(method.as_ptr(), method.len() as i32) };
 }
 
-pub fn set_uri(uri: &[u8]) {
+pub(crate) fn set_uri(uri: &[u8]) {
     unsafe { http_handler::set_uri(uri.as_ptr(), uri.len() as i32) };
 }
 
-pub fn version() -> Box<[u8]> {
+pub(crate) fn version() -> Box<[u8]> {
     let buffer = memory::buffer();
     let size = unsafe { http_handler::get_protocol_version(buffer.as_ptr(), buffer.len()) };
     buffer.to_boxed_slice(size)
 }
-pub fn uri() -> Box<[u8]> {
+
+pub(crate) fn uri() -> Box<[u8]> {
     let buffer = memory::buffer();
     let size = unsafe { http_handler::get_uri(buffer.as_ptr(), buffer.len()) };
     buffer.to_boxed_slice(size)
 }
 
-pub fn status_code() -> i32 {
+pub(crate) fn status_code() -> i32 {
     unsafe { http_handler::get_status_code() }
 }
 
-pub fn set_status_code(code: i32) {
+pub(crate) fn set_status_code(code: i32) {
     unsafe { http_handler::set_status_code(code) }
 }
 
-pub fn body(kind: i32) -> Box<[u8]> {
+pub(crate) fn body(kind: i32) -> Box<[u8]> {
     let buffer = memory::buffer();
     let mut eof = false;
     let mut size;
@@ -156,7 +157,7 @@ pub fn body(kind: i32) -> Box<[u8]> {
     out.concat().into_boxed_slice()
 }
 
-pub fn write_body(kind: i32, body: &[u8]) {
+pub(crate) fn write_body(kind: i32, body: &[u8]) {
     unsafe {
         http_handler::write_body(kind, body.as_ptr(), body.len() as i32);
     }
