@@ -166,7 +166,7 @@ impl From<&[u8]> for Bytes {
 /// ```no_run
 /// use http_wasm_guest::host::Request;
 ///
-/// let request = Request::new();
+/// let request = Request::default();
 /// let headers = request.header();
 ///
 /// // Add a header
@@ -195,7 +195,7 @@ impl Header {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// let request = Request::new();
+    /// let request = Request::default();
     /// let header_names = request.header().names();
     /// for name in header_names {
     ///     println!("Header: {}", name);
@@ -223,7 +223,7 @@ impl Header {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// let request = Request::new();
+    /// let request = Request::default();
     /// let values = request.header().values(b"content-type");
     /// for value in values {
     ///     println!("Content-Type: {}", value);
@@ -247,7 +247,7 @@ impl Header {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Response;
-    /// let response = Response::new();
+    /// let response = Response::default();
     /// response.header().set(b"content-type", b"application/json");
     /// ```
     pub fn set(&self, name: &[u8], value: &[u8]) {
@@ -267,7 +267,7 @@ impl Header {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Response;
-    /// let response = Response::new();
+    /// let response = Response::default();
     /// response.header().add(b"set-cookie", b"session=abc123");
     /// response.header().add(b"set-cookie", b"theme=dark");
     /// ```
@@ -285,7 +285,7 @@ impl Header {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// let request = Request::new();
+    /// let request = Request::default();
     /// request.header().remove(b"authorization");
     /// ```
     pub fn remove(&self, name: &[u8]) {
@@ -303,7 +303,7 @@ impl Header {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// let request = Request::new();
+    /// let request = Request::default();
     /// let all_headers = request.header().get();
     /// for (name, values) in all_headers {
     ///     println!("Header {}: {:?}", name, values);
@@ -329,8 +329,8 @@ impl Header {
 /// ```no_run
 /// use http_wasm_guest::host::{Request, Response};
 ///
-/// let request = Request::new();
-/// let response = Response::new();
+/// let request = Request::default();
+/// let response = Response::default();
 ///
 /// // Read request body
 /// let request_body = request.body().read();
@@ -356,7 +356,7 @@ impl Body {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// let request = Request::new();
+    /// let request = Request::default();
     /// let body_content = request.body().read();
     /// println!("Body: {}", body_content);
     /// ```
@@ -374,7 +374,7 @@ impl Body {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Response;
-    /// let response = Response::new();
+    /// let response = Response::default();
     /// response.body().write(b"Hello, World!");
     /// ```
     pub fn write(&self, body: &[u8]) {
@@ -438,7 +438,7 @@ impl Request {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// # let request = Request::new();
+    /// # let request = Request::default();
     /// let client_addr = request.source_addr();
     /// println!("Request from: {}", client_addr);
     /// ```
@@ -456,7 +456,7 @@ impl Request {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// # let request = Request::new();
+    /// # let request = Request::default();
     /// let version = request.version();
     /// println!("HTTP version: {}", version);
     /// ```
@@ -474,7 +474,7 @@ impl Request {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// # let request = Request::new();
+    /// # let request = Request::default();
     /// let method = request.method();
     /// if method.to_str().unwrap() == "POST" {
     ///     // Handle POST request
@@ -494,7 +494,7 @@ impl Request {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// # let request = Request::new();
+    /// # let request = Request::default();
     /// request.set_method(b"POST");
     /// ```
     pub fn set_method(&self, method: &[u8]) {
@@ -511,7 +511,7 @@ impl Request {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// # let request = Request::new();
+    /// # let request = Request::default();
     /// let uri = request.uri();
     /// println!("Request URI: {}", uri);
     /// ```
@@ -529,7 +529,7 @@ impl Request {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// # let request = Request::new();
+    /// # let request = Request::default();
     /// request.set_uri(b"/api/v2/users");
     /// ```
     pub fn set_uri(&self, uri: &[u8]) {
@@ -546,7 +546,7 @@ impl Request {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// # let request = Request::new();
+    /// # let request = Request::default();
     /// let content_type = request.header().values(b"content-type");
     /// ```
     pub fn header(&self) -> &Header {
@@ -563,7 +563,7 @@ impl Request {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Request;
-    /// # let request = Request::new();
+    /// # let request = Request::default();
     /// let body_content = request.body().read();
     /// ```
     pub fn body(&self) -> &Body {
@@ -629,7 +629,7 @@ impl Response {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Response;
-    /// # let response = Response::new();
+    /// # let response = Response::default();
     /// let status = response.status();
     /// if status >= 400 {
     ///     println!("Error response: {}", status);
@@ -649,7 +649,7 @@ impl Response {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Response;
-    /// # let response = Response::new();
+    /// # let response = Response::default();
     /// response.set_status(404); // Not Found
     /// ```
     pub fn set_status(&self, code: i32) {
@@ -666,7 +666,7 @@ impl Response {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Response;
-    /// # let response = Response::new();
+    /// # let response = Response::default();
     /// response.header().set(b"content-type", b"application/json");
     /// ```
     pub fn header(&self) -> &Header {
@@ -683,7 +683,7 @@ impl Response {
     ///
     /// ```no_run
     /// # use http_wasm_guest::host::Response;
-    /// # let response = Response::new();
+    /// # let response = Response::default();
     /// response.body().write(b"Hello, World!");
     /// ```
     pub fn body(&self) -> &Body {
