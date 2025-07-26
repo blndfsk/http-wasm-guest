@@ -106,7 +106,7 @@ static KIND_RES: i32 = 1;
 /// // Display as string (handles invalid UTF-8 gracefully)
 /// println!("{}", bytes);
 /// ```
-#[derive(PartialEq, Eq, Clone, Debug, Hash)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash, Default)]
 pub struct Bytes(Box<[u8]>);
 impl Bytes {
     /// Converts the bytes to a string slice if they contain valid UTF-8.
@@ -420,22 +420,14 @@ pub struct Request {
 
 impl Default for Request {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Request {
-    /// Creates a new Request instance.
-    ///
-    /// This is typically called by the http-wasm runtime and shouldn't
-    /// be called directly by plugin code.
-    pub fn new() -> Self {
         Self {
             header: Header { kind: KIND_REQ },
             body: Body { kind: KIND_REQ },
         }
     }
+}
 
+impl Request {
     /// Returns the source address of the client that made the request.
     ///
     /// # Returns
@@ -619,22 +611,14 @@ pub struct Response {
 
 impl Default for Response {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Response {
-    /// Creates a new Response instance.
-    ///
-    /// This is typically called by the http-wasm runtime and shouldn't
-    /// be called directly by plugin code.
-    pub fn new() -> Self {
         Self {
             header: Header { kind: KIND_RES },
             body: Body { kind: KIND_RES },
         }
     }
+}
 
+impl Response {
     /// Returns the HTTP status code of the response.
     ///
     /// # Returns
@@ -739,28 +723,28 @@ mod tests {
     }
     #[test]
     fn test_req() {
-        let r = Request::new();
+        let r = Request::default();
         let sut = r.method();
         assert_eq!("GET", sut.to_str().unwrap());
     }
 
     #[test]
     fn test_header_names() {
-        let r = Request::new();
+        let r = Request::default();
         let sut = r.header().names();
         assert_eq!(2, sut.len());
         assert!(sut.contains(&Bytes::from("X-FOO")));
     }
     #[test]
     fn test_header_values() {
-        let r = Request::new();
+        let r = Request::default();
         let sut = r.header().values(&Bytes::from("value"));
         assert!(!sut.is_empty());
         assert!(sut.contains(&Bytes::from("test1")));
     }
     #[test]
     fn test_header_get() {
-        let r = Request::new();
+        let r = Request::default();
         let sut = r.header().get();
         let h1 = Bytes::from("X-FOO");
         let h2 = Bytes::from("x-bar");
@@ -772,9 +756,17 @@ mod tests {
     }
     #[test]
     fn test_body() {
-        let r = Response::new();
+        let r = Response::default();
         let sut = r.body().read();
         assert!(!sut.is_empty());
         assert!(sut.starts_with(b"<html>"));
+    }
+
+    #[test]
+    fn test_version() {
+        let r = Request::default();
+        let sut = r.version();
+        assert!(!sut.is_empty());
+        assert_eq!(sut.as_ref(), b"HTTP/2.0");
     }
 }

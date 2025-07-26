@@ -36,15 +36,19 @@ pub mod overrides {
         unsafe { buf.copy_from(m.as_ptr(), m.len()) };
         m.len() as i32
     }
+
     #[unsafe(no_mangle)]
     pub extern "C" fn get_method(buf: *mut u8, _buf_limit: i32) -> i32 {
         let m = b"GET";
         unsafe { buf.copy_from(m.as_ptr(), m.len()) };
         m.len() as i32
     }
+
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_protocol_version(_ptr: *const u8, _message_len: i32) -> i32 {
-        2
+    pub extern "C" fn get_protocol_version(buf: *mut u8, _message_len: i32) -> i32 {
+        let m = b"HTTP/2.0";
+        unsafe { buf.copy_from(m.as_ptr(), m.len()) };
+        m.len() as i32
     }
 
     #[unsafe(no_mangle)]
@@ -53,12 +57,14 @@ pub mod overrides {
         unsafe { buf.copy_from(m.as_ptr(), m.len()) };
         1i64 << 32 | m.len() as i64
     }
+
     #[unsafe(no_mangle)]
     pub extern "C" fn get_header_names(_header_kind: i32, buf: *mut u8, _buf_limit: i32) -> i64 {
         let m = b"X-FOO\0x-bar\0";
         unsafe { buf.copy_from(m.as_ptr(), m.len()) };
         2i64 << 32 | m.len() as i64
     }
+
     #[unsafe(no_mangle)]
     pub extern "C" fn get_header_values(
         _header_kind: i32,

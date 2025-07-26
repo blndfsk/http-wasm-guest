@@ -10,19 +10,19 @@
 //!
 //! ```no_run
 //! use http_wasm_guest::host;
-//! use log::info;
+//! use log::{info, warn, error};
 //!
 //! fn main() {
 //!     // Initialize with default Info level
 //!     host::log::init().expect("Failed to initialize logger");
 //!
 //!     // Or initialize with a specific level
-//!     host::log::init_with_level(log::Level::Debug).expect("Failed to initialize logger");
+//!     // host::log::init_with_level(log::Level::Debug).expect("Failed to initialize logger");
 //!
 //!     // Now you can use standard Rust logging macros
-//!     log::info!("Plugin initialized");
-//!     log::warn!("This is a warning");
-//!     log::error!("This is an error");
+//!     info!("Plugin initialized");
+//!     warn!("This is a warning");
+//!     error!("This is an error");
 //! }
 //! ```
 //!

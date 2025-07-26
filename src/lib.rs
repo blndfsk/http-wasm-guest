@@ -316,7 +316,7 @@ fn http_request() -> i64 {
     let (next, ctx_next) = match GUEST.get() {
         Some(handler) => handler
             .guest
-            .handle_request(Request::new(), Response::new()),
+            .handle_request(Request::default(), Response::default()),
         None => (true, 0),
     };
 
@@ -328,6 +328,6 @@ fn http_response(_req_ctx: i32, _is_error: i32) {
     if let Some(handler) = GUEST.get() {
         handler
             .guest
-            .handle_response(Request::new(), Response::new())
+            .handle_response(Request::default(), Response::default())
     };
 }

@@ -9,7 +9,12 @@ struct Plugin;
 
 impl Guest for Plugin {
     fn handle_request(&self, request: Request, _response: Response) -> (bool, i32) {
-        info!("{} {}", request.method(), request.uri());
+        info!(
+            "{} {} {}",
+            request.version(),
+            request.method(),
+            request.uri()
+        );
         info!("{:?}", request.header().get());
         (true, 0)
     }
