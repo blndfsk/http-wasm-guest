@@ -45,6 +45,9 @@ pub mod overrides {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn set_method(_ptr: *const u8, _message_len: i32) {}
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn get_protocol_version(buf: *mut u8, _message_len: i32) -> i32 {
         let m = b"HTTP/2.0";
         unsafe { buf.copy_from(m.as_ptr(), m.len()) };
