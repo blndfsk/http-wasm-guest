@@ -1,15 +1,16 @@
+## v0.7.0
+API-Change: get_config() renamed to config(), returns Bytes instead of Result<String, FromUtf8Error>
 
 ## v0.6.2
-
 Documentation
 
-## v0.6.1 
-all setters now accept the more generic type ```&[u8]```. 
+## v0.6.1
+all setters now accept the more generic type ```&[u8]```.
  ```rust
 let header = request.header();
 header.add(&Bytes::from("X-Foo"), &Bytes::from("foo"));
 header.add(b"X-Bar", b"bar"); // this is now possible
-```        
+```
 
 ## v0.6.0
 ### New

@@ -116,10 +116,10 @@ impl From<&[u8]> for Bytes {
 /// # Examples
 ///
 /// ```no_run
-/// use http_wasm_guest::host::get_config;
+/// use http_wasm_guest::host::config;
 ///
 /// // Get configuration as bytes
-/// let config_bytes = get_config();
+/// let config_bytes = config();
 ///
 /// // Convert to string for text-based config formats
 /// match config_bytes.to_str() {
@@ -149,7 +149,7 @@ impl From<&[u8]> for Bytes {
 /// - If no configuration was provided, this function returns empty [`Bytes`]
 /// - The configuration format depends on the host implementation and use case
 /// - Common formats include JSON for structured data, but any binary format is supported
-pub fn get_config() -> Bytes {
+pub fn config() -> Bytes {
     Bytes(handler::get_config().into_boxed_slice())
 }
 
