@@ -16,70 +16,17 @@
 //!
 //! - [`feature`] - Enable optional host features like body buffering
 //! - [`log`] - Logging functionality that routes through the host
-//!
-//! # Example
-//!
-//! ```no_run
-//! use http_wasm_guest::host::{Request, Response, get_config};
-//!
-//! fn process_request(request: Request, response: Response) {
-//!     // Get plugin configuration
-//!     let config = get_config().unwrap_or_default();
-//!
-//!     // Read request details
-//!     let method = request.method();
-//!     let uri = request.uri();
-//!
-//!     // Modify response
-//!     response.set_status(200);
-//!     response.header().set(b"content-type", b"text/plain");
-//!     response.body().write(b"Hello from http-wasm!");
-//! }
-//! ```
 
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
     ops::Deref,
     str::{Utf8Error, from_utf8},
-    string::FromUtf8Error,
 };
 
 pub mod feature;
 mod handler;
 pub mod log;
-
-/// Retrieves the configuration data provided by the host.
-///
-/// This function returns the configuration that was passed to the WebAssembly module
-/// by the host environment. The configuration is typically provided as a string
-/// (often JSON or YAML format) that contains settings for the plugin.
-///
-/// # Returns
-///
-/// Returns a `Result<String, FromUtf8Error>` where:
-/// - `Ok(String)`: The configuration data as a UTF-8 string
-/// - `Err(FromUtf8Error)`: If the configuration data is not valid UTF-8
-///
-/// # Example
-///
-/// ```no_run
-/// use http_wasm_guest::host::get_config;
-///
-/// match get_config() {
-///     Ok(config) => {
-///         // Parse configuration (e.g., JSON)
-///         println!("Plugin config: {}", config);
-///     }
-///     Err(e) => {
-///         // Handle invalid UTF-8 configuration
-///         eprintln!("Invalid config encoding: {}", e);
-///     }
-/// }
-/// ```
-pub fn get_config() -> Result<String, FromUtf8Error> {
-    String::from_utf8(handler::get_config())
-}
 
 static KIND_REQ: i32 = 0;
 static KIND_RES: i32 = 1;
@@ -153,6 +100,57 @@ impl From<&[u8]> for Bytes {
     fn from(value: &[u8]) -> Self {
         Self(value.to_vec().into_boxed_slice())
     }
+}
+
+/// Retrieves the configuration data provided by the host.
+///
+/// This function returns the configuration that was passed to the WebAssembly module
+/// by the host environment. The configuration is typically provided as binary data
+/// that can contain JSON, YAML, TOML, or other configuration formats.
+///
+/// # Returns
+///
+/// Returns a [`Bytes`] object containing the raw configuration data. Use the
+/// [`Bytes::to_str()`] method to convert to a UTF-8 string if needed.
+///
+/// # Examples
+///
+/// ```no_run
+/// use http_wasm_guest::host::get_config;
+///
+/// // Get configuration as bytes
+/// let config_bytes = get_config();
+///
+/// // Convert to string for text-based config formats
+/// match config_bytes.to_str() {
+///     Ok(config_str) => {
+///         // Parse configuration (e.g., JSON)
+///         println!("Plugin config: {}", config_str);
+///
+///         // Example with JSON parsing
+///         // let config: serde_json::Value = serde_json::from_str(config_str)?;
+///     }
+///     Err(e) => {
+///         // Handle invalid UTF-8 configuration
+///         eprintln!("Config is not valid UTF-8: {}", e);
+///
+///         // Still possible to work with raw bytes
+///         println!("Config size: {} bytes", config_bytes.len());
+///     }
+/// }
+///
+/// // Direct access to raw bytes
+/// let raw_data: &[u8] = &config_bytes;
+/// ```
+///
+/// # Notes
+///
+/// - The configuration is set by the host environment when the WebAssembly module is loaded
+/// - If no configuration was provided, this function returns empty [`Bytes`]
+/// - The configuration format depends on the host implementation and use case
+/// - Common formats include JSON for structured data, but any binary format is supported
+pub fn get_config() -> Bytes {
+    Bytes(handler::get_config().into_boxed_slice())
 }
 
 /// Represents HTTP headers for either a request or response.
