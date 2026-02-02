@@ -3,47 +3,12 @@ use std::{
     ops::Deref,
     str::{Utf8Error, from_utf8},
 };
-
-/// A wrapper around a byte array that provides convenience methods for handling binary data.
-///
-/// `Bytes` is used throughout the http-wasm API to represent string and binary data from
-/// HTTP requests and responses. It provides methods to convert to UTF-8 strings and
-/// implements common traits for easy manipulation.
-///
-/// # Examples
-///
-/// ```rust
-/// use http_wasm_guest::host::Bytes;
-///
-/// // Create from string
-/// let bytes = Bytes::from("hello world");
-/// assert_eq!(bytes.to_str().unwrap(), "hello world");
-///
-/// // Create from byte slice
-/// let bytes = Bytes::from(b"binary data".as_slice());
-/// assert_eq!(bytes.len(), 11);
-///
-/// // Display as string (handles invalid UTF-8 gracefully)
-/// println!("{}", bytes);
-/// ```
+/// A container for binary data used throughout the API.
 #[derive(PartialEq, Eq, Clone, Debug, Hash, Default)]
 pub struct Bytes(Box<[u8]>);
+
 impl Bytes {
-    /// Converts the bytes to a string slice if they contain valid UTF-8.
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result<&str, Utf8Error>` where:
-    /// - `Ok(&str)`: A string slice if the bytes are valid UTF-8
-    /// - `Err(Utf8Error)`: If the bytes don't form valid UTF-8
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use http_wasm_guest::host::Bytes;
-    /// let bytes = Bytes::from("hello");
-    /// assert_eq!(bytes.to_str().unwrap(), "hello");
-    /// ```
+    /// Returns the contents as UTF-8 if valid.
     pub fn to_str(&self) -> Result<&str, Utf8Error> {
         from_utf8(&self.0)
     }

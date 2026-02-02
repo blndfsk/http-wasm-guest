@@ -3,7 +3,7 @@ use crate::{
     host::handler,
 };
 
-pub struct Body(pub i32);
+pub(crate) struct Body(pub i32);
 
 impl api::Body for Body {
     fn read(&self) -> Bytes {

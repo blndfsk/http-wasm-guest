@@ -5,7 +5,7 @@ use crate::{
     host::handler,
 };
 
-pub struct Header(pub i32);
+pub(crate) struct Header(pub i32);
 
 impl api::Header for Header {
     fn names(&self) -> Vec<Bytes> {

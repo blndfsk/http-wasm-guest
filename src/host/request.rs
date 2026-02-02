@@ -28,12 +28,12 @@ impl api::Request for Message {
         handler::set_uri(uri);
     }
 
-    fn header(&self) -> &Box<dyn Header + 'static> {
-        &self.header
+    fn header(&self) -> &dyn Header {
+        self.header.as_ref()
     }
 
-    fn body(&self) -> &Box<dyn Body + 'static> {
-        &self.body
+    fn body(&self) -> &dyn Body {
+        self.body.as_ref()
     }
 }
 
