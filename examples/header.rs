@@ -7,14 +7,12 @@
 //! in the `main` function.
 
 use http_wasm_guest::{
-    Guest,
-    host::{Request, Response},
-    register,
+    Guest, Request, Response, register
 };
 
 /// A simple plugin that adds a custom header to each request.
 struct Plugin;
- 
+
 impl Guest for Plugin {
     /// Handles incoming requests by adding the `X-Bar: bar` header.
     ///

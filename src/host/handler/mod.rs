@@ -184,14 +184,14 @@ fn split_u8_nul(src: &[u8]) -> Vec<&[u8]> {
     }
     out
 }
-pub fn split_i64(n: i64) -> (i32, i32) {
+fn split_i64(n: i64) -> (i32, i32) {
     (
         (n >> 32) as i32, //upper count
         n as i32,         //lower len
     )
 }
 
-pub fn eof_size(n: i64) -> (bool, i32) {
+fn eof_size(n: i64) -> (bool, i32) {
     let (v, size) = split_i64(n);
     (v == 1, size)
 }
@@ -199,6 +199,11 @@ pub fn eof_size(n: i64) -> (bool, i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_status_code() {
+        assert_eq!(status_code(), 200)
+    }
 
     #[test]
     fn test_split_i64() {

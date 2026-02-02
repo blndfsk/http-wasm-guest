@@ -35,6 +35,11 @@ fn main() {
     register(plugin);
 }
 ```
+## Building
+This is a library for creating wasm-plugins and is not useful standalone. 
 
-## Example
+### Tests
+cargo test --lib
+
+### Examples
 cargo build --target wasm32-wasip1 --examples

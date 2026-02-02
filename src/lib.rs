@@ -107,8 +107,7 @@
 
 use std::sync::OnceLock;
 
-use host::{Request, Response};
-
+pub mod api;
 pub mod host;
 
 struct Handler {
@@ -118,6 +117,9 @@ unsafe impl Send for Handler {}
 unsafe impl Sync for Handler {}
 
 static GUEST: OnceLock<Handler> = OnceLock::new();
+
+pub type Request = Box<dyn api::Request + 'static>;
+pub type Response = Box<dyn api::Response + 'static>;
 
 /// The main trait for implementing HTTP WebAssembly guest plugins.
 ///
@@ -311,12 +313,16 @@ pub fn register<T: Guest + 'static>(guest: T) {
     });
 }
 
+static KIND_REQ: i32 = 0;
+static KIND_RES: i32 = 1;
+
 #[unsafe(export_name = "handle_request")]
 fn http_request() -> i64 {
     let (next, ctx_next) = match GUEST.get() {
-        Some(handler) => handler
-            .guest
-            .handle_request(Request::default(), Response::default()),
+        Some(handler) => handler.guest.handle_request(
+            Box::new(host::Message::new(KIND_REQ)),
+            Box::new(host::Message::new(KIND_RES)),
+        ),
         None => (true, 0),
     };
 
@@ -326,8 +332,9 @@ fn http_request() -> i64 {
 #[unsafe(export_name = "handle_response")]
 fn http_response(_req_ctx: i32, _is_error: i32) {
     if let Some(handler) = GUEST.get() {
-        handler
-            .guest
-            .handle_response(Request::default(), Response::default())
+        handler.guest.handle_response(
+            Box::new(host::Message::new(KIND_REQ)),
+            Box::new(host::Message::new(KIND_RES)),
+        )
     };
 }

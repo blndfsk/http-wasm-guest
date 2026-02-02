@@ -12,9 +12,7 @@
 //! Register the plugin and initialize logging in `main`.
 
 use http_wasm_guest::{
-    Guest,
-    host::{self, Request, Response, feature::BufferRequest},
-    register,
+    Guest, Request, Response, host::{self, feature}, register
 };
 use log::info;
 
@@ -38,7 +36,7 @@ impl Guest for Plugin {
 fn main() {
     // Initialize logger and enable request body buffering.
     host::log::init().expect("error initializing logger");
-    host::feature::enable(BufferRequest);
+    feature::enable(feature::BufferRequest);
     let plugin = Plugin;
     register(plugin);
 }
