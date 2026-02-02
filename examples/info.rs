@@ -12,7 +12,9 @@
 //! Register the plugin and initialize logging in `main`.
 
 use http_wasm_guest::{
-    Guest, Request, Response, host::{self, feature}, register
+    Guest, Request, Response,
+    host::{self, feature},
+    register,
 };
 use log::info;
 

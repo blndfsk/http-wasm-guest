@@ -11,7 +11,9 @@
 //! Register the plugin and enable response buffering in `main`.
 
 use http_wasm_guest::{
-    Guest, Request, Response, host::feature::{self, BufferResponse}, register
+    Guest, Request, Response,
+    host::feature::{self, BufferResponse},
+    register,
 };
 
 /// Plugin that overwrites the response body.
