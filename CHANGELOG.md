@@ -1,3 +1,8 @@
+## v0.8.0
+API-Change: public API refactor to use trait-based request/response/body/header abstractions.
+Documentation: refreshed public API docs and feature flag descriptions.
+Formatting: codebase formatted.
+
 ## v0.7.0
 API-Change: get_config() renamed to config(), returns Bytes instead of Result<String, FromUtf8Error>
 
@@ -28,6 +33,7 @@ Ability to construct Bytes from &[u8]
 ```rust
 let b = Bytes::from(b"test");
 ```
+
 ## v0.5.0
 ### New
 Change own log macros to the standard log-crate

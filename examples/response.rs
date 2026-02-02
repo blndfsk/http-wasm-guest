@@ -11,11 +11,8 @@
 //! Register the plugin and enable response buffering in `main`.
 
 use http_wasm_guest::{
-    Guest,
-    host::{
-        Request, Response,
-        feature::{self, BufferResponse},
-    },
+    Guest, Request, Response,
+    host::feature::{self, BufferResponse},
     register,
 };
 

@@ -22,6 +22,7 @@ unsafe extern "C" {
     pub(crate) unsafe fn get_source_addr(buf: *const u8, buf_limit: i32) -> i32;
 }
 
+#[rustfmt::skip]
 #[cfg(test)]
 pub mod overrides {
 
@@ -55,11 +56,20 @@ pub mod overrides {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn add_header_value(_header_kind: i32, _name_ptr: *const u8, _name_len: i32, _value_ptr: *const u8, _value_len: i32,){}
+    #[unsafe(no_mangle)]
+    pub extern "C" fn set_header_value(_header_kind: i32, _name_ptr: *const u8, _name_len: i32, _value_ptr: *const u8, _value_len: i32,){}
+    #[unsafe(no_mangle)]
+    pub extern "C" fn remove_header(_header_kind: i32, _name_ptr: *const u8, _name_len: i32) {}
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn read_body(_body_kind: i32, buf: *mut u8, _buf_limit: i32) -> i64 {
         let m = b"<html><body>test</body>";
         unsafe { buf.copy_from(m.as_ptr(), m.len()) };
         1i64 << 32 | m.len() as i64
     }
+    #[unsafe(no_mangle)]
+    pub extern "C" fn write_body(_body_kind: i32, _ptr: *const u8, _message_len: i32) {}
 
     #[unsafe(no_mangle)]
     pub extern "C" fn get_header_names(_header_kind: i32, buf: *mut u8, _buf_limit: i32) -> i64 {
@@ -69,15 +79,16 @@ pub mod overrides {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_header_values(
-        _header_kind: i32,
-        _name_ptr: *const u8,
-        _name_len: i32,
-        buf: *mut u8,
-        _buf_limit: i32,
-    ) -> i64 {
+    pub extern "C" fn get_header_values(_header_kind: i32, _name_ptr: *const u8, _name_len: i32, buf: *mut u8, _buf_limit: i32) -> i64 {
         let m = b"test1\0";
         unsafe { buf.copy_from(m.as_ptr(), m.len()) };
         1i64 << 32 | m.len() as i64
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn get_source_addr(buf: *mut u8, _buf_limit: i32) -> i32 {
+        let m = b"192.168.1.1";
+        unsafe { buf.copy_from(m.as_ptr(), m.len()) };
+        m.len() as i32
     }
 }
