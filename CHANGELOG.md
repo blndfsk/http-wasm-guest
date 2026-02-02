@@ -1,5 +1,7 @@
-## 0.8.0
-
+## v0.8.0
+API-Change: public API refactor to use trait-based request/response/body/header abstractions.
+Documentation: refreshed public API docs and feature flag descriptions.
+Formatting: codebase formatted.
 
 ## v0.7.0
 API-Change: get_config() renamed to config(), returns Bytes instead of Result<String, FromUtf8Error>
