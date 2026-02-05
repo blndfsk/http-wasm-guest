@@ -20,9 +20,9 @@ static GUEST: OnceLock<Handler> = OnceLock::new();
 
 /// Boxed HTTP request trait object used by guest handlers.
 pub type Request = Box<dyn api::Request + 'static>;
-
 /// Boxed HTTP response trait object used by guest handlers.
 pub type Response = Box<dyn api::Response + 'static>;
+
 
 /// Trait implemented by guest plugins to handle HTTP requests and responses.
 pub trait Guest {
@@ -42,16 +42,10 @@ pub fn register<T: Guest + 'static>(guest: T) {
     });
 }
 
-static KIND_REQ: i32 = 0;
-static KIND_RES: i32 = 1;
-
 #[unsafe(export_name = "handle_request")]
 fn http_request() -> i64 {
     let (next, ctx_next) = match GUEST.get() {
-        Some(handler) => handler.guest.handle_request(
-            Box::new(host::Message::new(KIND_REQ)),
-            Box::new(host::Message::new(KIND_RES)),
-        ),
+        Some(handler) => handler.guest.handle_request(Request::default(),Response::default()),
         None => (true, 0),
     };
 
@@ -61,9 +55,6 @@ fn http_request() -> i64 {
 #[unsafe(export_name = "handle_response")]
 fn http_response(_req_ctx: i32, _is_error: i32) {
     if let Some(handler) = GUEST.get() {
-        handler.guest.handle_response(
-            Box::new(host::Message::new(KIND_REQ)),
-            Box::new(host::Message::new(KIND_RES)),
-        )
+        handler.guest.handle_response(Request::default(),Response::default())
     };
 }

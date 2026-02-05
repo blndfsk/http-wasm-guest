@@ -3,14 +3,28 @@ pub mod feature;
 /// Logging helpers that route through the host.
 pub mod log;
 
-pub(crate) mod request;
-pub(crate) mod response;
-
+mod request;
+mod response;
 mod body;
 mod handler;
 mod header;
 
 use crate::api::{Body, Bytes, Header};
+
+static KIND_REQ: i32 = 0;
+static KIND_RES: i32 = 1;
+
+impl Default for crate::Request {
+    fn default() -> Self {
+        Box::new(Message::new(KIND_REQ))
+    }
+}
+
+impl Default for crate::Response {
+    fn default() -> Self {
+        Box::new(Message::new(KIND_RES))
+    }
+}
 
 pub(crate) struct Message {
     header: Box<dyn Header>,
@@ -24,6 +38,7 @@ impl Message {
         }
     }
 }
+
 /// Returns the raw configuration bytes provided by the host.
 pub fn config() -> Bytes {
     Bytes::from(handler::get_config())

@@ -32,7 +32,7 @@ jobs:
           echo "Version check passed: $TAG_VERSION"
 
       - name: Run tests
-        run: cargo test --verbose --lib
+        run: cargo test --verbose --lib -- --test-threads=1
 
       - name: Build release
         run: cargo build --release --verbose

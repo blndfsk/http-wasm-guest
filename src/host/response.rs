@@ -1,9 +1,9 @@
 use crate::{
-    api,
-    host::{Body, Header, Message, handler},
+    api::{Body, Header, Response},
+    host::{Message, handler},
 };
 
-impl api::Response for Message {
+impl Response for Message {
     fn status(&self) -> i32 {
         handler::status_code()
     }
@@ -11,7 +11,6 @@ impl api::Response for Message {
     fn set_status(&self, code: i32) {
         handler::set_status_code(code);
     }
-
     fn header(&self) -> &dyn Header {
         self.header.as_ref()
     }
@@ -23,11 +22,11 @@ impl api::Response for Message {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::api::Response as _;
+    use crate::Response;
+
     #[test]
     fn test_body() {
-        let r = Message::new(1);
+        let r = Response::default();
         let sut = r.body().read();
         assert!(!sut.is_empty());
         assert!(sut.starts_with(b"<html>"));

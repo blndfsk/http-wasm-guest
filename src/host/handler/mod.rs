@@ -1,23 +1,23 @@
-mod http_handler;
+mod ffi;
 mod memory;
 
 pub(crate) fn log(level: i32, message: &[u8]) {
-    unsafe { http_handler::log(level, message.as_ptr(), message.len() as i32) };
+    unsafe { ffi::log(level, message.as_ptr(), message.len() as i32) };
 }
 
 pub(crate) fn log_enabled(level: i32) -> bool {
-    matches!(unsafe { http_handler::log_enabled(level) }, 1)
+    matches!(unsafe { ffi::log_enabled(level) }, 1)
 }
 
 pub(crate) fn get_config() -> Vec<u8> {
     let buffer = memory::buffer();
-    match unsafe { http_handler::get_config(buffer.as_ptr(), buffer.len()) } {
+    match unsafe { ffi::get_config(buffer.as_ptr(), buffer.len()) } {
         size if size <= buffer.len() => buffer.as_subslice(size).to_vec(),
         capacity => {
             let mut buf = Vec::with_capacity(capacity as usize);
             let vec = unsafe {
                 let ptr = buf.as_mut_ptr();
-                let length = http_handler::get_config(ptr, capacity);
+                let length = ffi::get_config(ptr, capacity);
                 Vec::from_raw_parts(ptr, length as usize, capacity as usize)
             };
             std::mem::forget(buf);
@@ -27,13 +27,13 @@ pub(crate) fn get_config() -> Vec<u8> {
 }
 
 pub(crate) fn enable_feature(feature: i32) -> i32 {
-    unsafe { http_handler::enable_features(feature) }
+    unsafe { ffi::enable_features(feature) }
 }
 
 pub(crate) fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
     let buffer = memory::buffer();
     let count_len = unsafe {
-        http_handler::get_header_values(
+        ffi::get_header_values(
             kind,
             name.as_ptr(),
             name.len() as i32,
@@ -50,7 +50,7 @@ pub(crate) fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
     let vec = unsafe {
         let ptr = buf.as_mut_ptr();
         let length =
-            http_handler::get_header_values(kind, name.as_ptr(), name.len() as i32, ptr, len);
+            ffi::get_header_values(kind, name.as_ptr(), name.len() as i32, ptr, len);
         let new_buf = Vec::from_raw_parts(ptr, length as usize, len as usize);
         split(new_buf.as_slice(), count, len)
     };
@@ -60,7 +60,7 @@ pub(crate) fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
 
 pub(crate) fn header_names(kind: i32) -> Vec<Box<[u8]>> {
     let buffer = memory::buffer();
-    let count_len = unsafe { http_handler::get_header_names(kind, buffer.as_ptr(), buffer.len()) };
+    let count_len = unsafe { ffi::get_header_names(kind, buffer.as_ptr(), buffer.len()) };
     let (count, len) = split_i64(count_len);
     if len <= buffer.len() {
         return split(buffer.as_slice(), count, len);
@@ -68,7 +68,7 @@ pub(crate) fn header_names(kind: i32) -> Vec<Box<[u8]>> {
     let mut buf = Vec::with_capacity(len as usize);
     let vec = unsafe {
         let ptr = buf.as_mut_ptr();
-        let length = http_handler::get_header_names(kind, ptr, len);
+        let length = ffi::get_header_names(kind, ptr, len);
         let new_buf = Vec::from_raw_parts(ptr, length as usize, len as usize);
         split(new_buf.as_slice(), count, len)
     };
@@ -77,12 +77,12 @@ pub(crate) fn header_names(kind: i32) -> Vec<Box<[u8]>> {
 }
 
 pub(crate) fn remove_header(kind: i32, name: &[u8]) {
-    unsafe { http_handler::remove_header(kind, name.as_ptr(), name.len() as i32) }
+    unsafe { ffi::remove_header(kind, name.as_ptr(), name.len() as i32) }
 }
 
 pub(crate) fn set_header(kind: i32, name: &[u8], value: &[u8]) {
     unsafe {
-        http_handler::set_header_value(
+        ffi::set_header_value(
             kind,
             name.as_ptr(),
             name.len() as i32,
@@ -94,7 +94,7 @@ pub(crate) fn set_header(kind: i32, name: &[u8], value: &[u8]) {
 
 pub(crate) fn add_header_value(kind: i32, name: &[u8], value: &[u8]) {
     unsafe {
-        http_handler::add_header_value(
+        ffi::add_header_value(
             kind,
             name.as_ptr(),
             name.len() as i32,
@@ -106,42 +106,42 @@ pub(crate) fn add_header_value(kind: i32, name: &[u8], value: &[u8]) {
 
 pub(crate) fn source_addr() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { http_handler::get_source_addr(buffer.as_ptr(), buffer.len()) };
+    let size = unsafe { ffi::get_source_addr(buffer.as_ptr(), buffer.len()) };
     buffer.to_boxed_slice(size)
 }
 
 pub(crate) fn method() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { http_handler::get_method(buffer.as_ptr(), buffer.len()) };
+    let size = unsafe { ffi::get_method(buffer.as_ptr(), buffer.len()) };
     buffer.to_boxed_slice(size)
 }
 
 pub(crate) fn set_method(method: &[u8]) {
-    unsafe { http_handler::set_method(method.as_ptr(), method.len() as i32) };
+    unsafe { ffi::set_method(method.as_ptr(), method.len() as i32) };
 }
 
 pub(crate) fn set_uri(uri: &[u8]) {
-    unsafe { http_handler::set_uri(uri.as_ptr(), uri.len() as i32) };
+    unsafe { ffi::set_uri(uri.as_ptr(), uri.len() as i32) };
 }
 
 pub(crate) fn version() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { http_handler::get_protocol_version(buffer.as_ptr(), buffer.len()) };
+    let size = unsafe { ffi::get_protocol_version(buffer.as_ptr(), buffer.len()) };
     buffer.to_boxed_slice(size)
 }
 
 pub(crate) fn uri() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { http_handler::get_uri(buffer.as_ptr(), buffer.len()) };
+    let size = unsafe { ffi::get_uri(buffer.as_ptr(), buffer.len()) };
     buffer.to_boxed_slice(size)
 }
 
 pub(crate) fn status_code() -> i32 {
-    unsafe { http_handler::get_status_code() }
+    unsafe { ffi::get_status_code() }
 }
 
 pub(crate) fn set_status_code(code: i32) {
-    unsafe { http_handler::set_status_code(code) }
+    unsafe { ffi::set_status_code(code) }
 }
 
 pub(crate) fn body(kind: i32) -> Box<[u8]> {
@@ -151,7 +151,7 @@ pub(crate) fn body(kind: i32) -> Box<[u8]> {
     let mut out = Vec::new();
     while !eof {
         (eof, size) =
-            eof_size(unsafe { http_handler::read_body(kind, buffer.as_ptr(), buffer.len()) });
+            eof_size(unsafe { ffi::read_body(kind, buffer.as_ptr(), buffer.len()) });
         out.push(buffer.as_subslice(size));
     }
     out.concat().into_boxed_slice()
@@ -159,7 +159,7 @@ pub(crate) fn body(kind: i32) -> Box<[u8]> {
 
 pub(crate) fn write_body(kind: i32, body: &[u8]) {
     unsafe {
-        http_handler::write_body(kind, body.as_ptr(), body.len() as i32);
+        ffi::write_body(kind, body.as_ptr(), body.len() as i32);
     }
 }
 
@@ -198,6 +198,7 @@ fn eof_size(n: i64) -> (bool, i32) {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]

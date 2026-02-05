@@ -22,14 +22,35 @@ unsafe extern "C" {
     pub(crate) unsafe fn get_source_addr(buf: *const u8, buf_limit: i32) -> i32;
 }
 
+
 #[rustfmt::skip]
 #[cfg(test)]
 pub mod overrides {
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn log_enabled(_level: i32) -> i32 {0}
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn log(_level: i32, _message: *const u8, _message_len: i32) {}
+
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn get_status_code() -> i32 {
         200
     }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn set_status_code(_code: i32) {}
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn get_uri(buf: *mut u8, _buf_limit: i32) -> i32 {
+        let m = br#"https://test"#;
+        unsafe { buf.copy_from(m.as_ptr(), m.len()) };
+        m.len() as i32
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn set_uri(_buf: *const u8, _message_len: i32) {}
 
     #[unsafe(no_mangle)]
     pub extern "C" fn get_config(buf: *mut u8, _buf_limit: i32) -> i32 {
