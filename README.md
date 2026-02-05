@@ -9,11 +9,32 @@ The main use is for writing traefik-plugins in rust.
 - Initial reference code from https://github.com/elisasre/http-wasm-rust/
 - API inspired by https://github.com/http-wasm/http-wasm-guest-tinygo
 
-## Building
-This is a library for creating wasm-plugins and is not useful standalone. 
+## Usage
 
+Implement the 'Guest'-Trait and register the plugin. 
+
+```rust
+use http_wasm_guest::{Guest, Request, Response, register};
+
+/// A simple plugin that adds a custom header to each request.
+struct Plugin;
+
+impl Guest for Plugin {
+    fn handle_request(&self, request: Request, _response: Response) -> (bool, i32) {
+        let header = request.header();
+        header.add(b"X-Bar", b"bar");
+        (true, 0)
+    }
+}
+
+/// Registers the plugin with the http-wasm runtime.
+fn main() {
+    let plugin = Plugin;
+    register(plugin);
+}
+```
 ### Tests
-cargo test --lib
+cargo test --lib -- --test-threads=1
 
 ### Examples
 cargo build --target wasm32-wasip1 --examples
