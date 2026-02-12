@@ -1,10 +1,13 @@
 [package]
 name = "http-wasm-guest"
-description = "a library providing a http-wasm guest handler"
-version = "0.8.0"
+description = "A Rust library for implementing HTTP-Wasm guest handlers."
+version = "0.9.0"
 edition = "2024"
 repository = "https://github.com/blndfsk/http-wasm-guest"
 license = "MIT"
+documentation = "https://docs.rs/http-wasm-guest"
+keywords = ["http-wasm", "wasm", "http", "plugin", "traefik"]
+categories = ["wasm", "web-programming"]
 
 [dependencies]
 log = "0.4"

@@ -3,12 +3,21 @@ use std::{
     ops::Deref,
     str::{Utf8Error, from_utf8},
 };
-/// A container for binary data used throughout the API.
+/// Owned container for binary data used throughout the API.
+///
+/// `Bytes` stores its contents as a boxed slice for efficient cloning and
+/// sharing. It is suitable for HTTP headers, bodies, and configuration payloads,
+/// and can be created from common byte-oriented types.
+///
+/// Use [`to_str`](Bytes::to_str) to interpret the contents as UTF-8.
 #[derive(PartialEq, Eq, Clone, Debug, Hash, Default)]
 pub struct Bytes(Box<[u8]>);
 
 impl Bytes {
     /// Returns the contents as UTF-8 if valid.
+    ///
+    /// This is a zero-copy view into the underlying bytes. If the data is not
+    /// valid UTF-8, an error is returned.
     pub fn to_str(&self) -> Result<&str, Utf8Error> {
         from_utf8(&self.0)
     }
@@ -29,21 +38,29 @@ impl Display for Bytes {
         write!(f, "{}", &s)
     }
 }
+/// Creates a `Bytes` value from a UTF-8 string slice.
+///
+/// The string is copied into an owned byte buffer.
 impl From<&str> for Bytes {
     fn from(value: &str) -> Self {
         Self(value.as_bytes().to_vec().into_boxed_slice())
     }
 }
+/// Creates a `Bytes` value by taking ownership of a byte vector.
+///
+/// This avoids an extra copy by converting the `Vec<u8>` into a boxed slice.
 impl From<Vec<u8>> for Bytes {
     fn from(value: Vec<u8>) -> Self {
         Self(value.into_boxed_slice())
     }
 }
+/// Creates a `Bytes` value by copying a byte slice.
 impl From<&[u8]> for Bytes {
     fn from(value: &[u8]) -> Self {
         Self(value.to_vec().into_boxed_slice())
     }
 }
+/// Creates a `Bytes` value from an existing boxed slice without copying.
 impl From<Box<[u8]>> for Bytes {
     fn from(value: Box<[u8]>) -> Self {
         Self(value)

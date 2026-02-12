@@ -20,7 +20,7 @@ use http_wasm_guest::{Guest, Request, Response, register};
 struct Plugin;
 
 impl Guest for Plugin {
-    fn handle_request(&self, request: Request, _response: Response) -> (bool, i32) {
+    fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
         let header = request.header();
         header.add(b"X-Bar", b"bar");
         (true, 0)

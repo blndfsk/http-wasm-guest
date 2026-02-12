@@ -1,6 +1,6 @@
-use std::sync::LazyLock;
+use std::sync::{LazyLock, RwLock, RwLockWriteGuard};
 
-static BUFFER: LazyLock<Buffer> = LazyLock::new(Buffer::new);
+static BUFFER: RwLock<LazyLock<Buffer>> = RwLock::new(LazyLock::new(Buffer::new));
 const SIZE: usize = 2048;
 
 pub(crate) struct Buffer {
@@ -14,8 +14,8 @@ impl Buffer {
     pub fn len(&self) -> i32 {
         self.data.len() as i32
     }
-    pub fn as_ptr(&self) -> *const u8 {
-        self.data.as_ptr()
+    pub fn as_mut_ptr(&mut self) -> *mut u8 {
+        self.data.as_mut_ptr()
     }
     pub fn as_slice(&self) -> &[u8] {
         &self.data
@@ -34,8 +34,15 @@ impl Buffer {
     }
 }
 
-pub(crate) fn buffer() -> &'static Buffer {
-    &BUFFER
+pub(crate) fn buffer() -> RwLockWriteGuard<'static, LazyLock<Buffer>> {
+    match BUFFER.write() {
+        Ok(buf) => buf,
+        Err(err) => {
+            log::error!("{}", err);
+            BUFFER.clear_poison();
+            buffer()
+        }
+    }
 }
 
 #[cfg(test)]

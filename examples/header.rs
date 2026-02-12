@@ -6,7 +6,11 @@
 //! The plugin implements the `Guest` trait and registers itself
 //! in the `main` function.
 
-use http_wasm_guest::{Guest, Request, Response, register};
+use http_wasm_guest::{
+    Guest,
+    host::{Request, Response},
+    register,
+};
 
 /// A simple plugin that adds a custom header to each request.
 struct Plugin;
@@ -20,7 +24,7 @@ impl Guest for Plugin {
     ///
     /// # Returns
     /// Returns a tuple `(true, 0)` to indicate the request should continue.
-    fn handle_request(&self, request: Request, _response: Response) -> (bool, i32) {
+    fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
         let header = request.header();
         header.add(b"X-Bar", b"bar");
         (true, 0)

@@ -1,49 +1,68 @@
-use crate::{
-    api::{Body, Header, Request},
-    host::{Bytes, Message, handler},
-};
+use crate::host::{Body, Bytes, Header, handler};
+/// Handle for accessing and mutating the current HTTP request.
+pub struct Request {
+    header: Header,
+    body: Body,
+}
+static KIND_REQ: i32 = 0;
 
-impl Request for Message {
-    fn source_addr(&self) -> Bytes {
+impl Default for Request {
+    fn default() -> Self {
+        Self {
+            header: Header::kind(KIND_REQ),
+            body: Body::kind(KIND_REQ),
+        }
+    }
+}
+
+impl Request {
+    /// Return the client source address as raw bytes.
+    pub fn source_addr(&self) -> Bytes {
         Bytes::from(handler::source_addr())
     }
 
-    fn version(&self) -> Bytes {
+    /// Return the HTTP protocol version (for example, `HTTP/1.1`).
+    pub fn version(&self) -> Bytes {
         Bytes::from(handler::version())
     }
 
-    fn method(&self) -> Bytes {
+    /// Return the request method (for example, `GET` or `POST`).
+    pub fn method(&self) -> Bytes {
         Bytes::from(handler::method())
     }
 
-    fn set_method(&self, method: &[u8]) {
+    /// Replace the request method with the provided bytes.
+    pub fn set_method(&self, method: &[u8]) {
         handler::set_method(method);
     }
 
-    fn uri(&self) -> Bytes {
+    /// Return the request URI as raw bytes.
+    pub fn uri(&self) -> Bytes {
         Bytes::from(handler::uri())
     }
 
-    fn set_uri(&self, uri: &[u8]) {
+    /// Replace the request URI with the provided bytes.
+    pub fn set_uri(&self, uri: &[u8]) {
         handler::set_uri(uri);
     }
-    fn header(&self) -> &dyn Header {
-        self.header.as_ref()
+
+    /// Return a handle for accessing and mutating request headers.
+    pub fn header(&self) -> &Header {
+        &self.header
     }
 
-    fn body(&self) -> &dyn Body {
-        self.body.as_ref()
+    /// Return a handle for reading or writing the request body.
+    pub fn body(&self) -> &Body {
+        &self.body
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::Request;
-
     use super::*;
 
     #[test]
-    fn test_req() {
+    fn test_method() {
         let r = Request::default();
         let sut = r.method();
         assert_eq!("GET", sut.to_str().unwrap());

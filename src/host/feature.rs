@@ -1,5 +1,10 @@
-use super::handler;
+//! Host feature flags for configuring runtime capabilities.
+//!
+//! Use these flags to enable host-supported functionality such as buffering
+//! request/response bodies or accessing trailers. Combine multiple flags with
+//! bitwise OR and pass the result to `admin::enable`.
 use std::ops::BitOr;
+
 #[allow(non_upper_case_globals, non_snake_case)]
 /// Enables buffering of the entire request body before your handler is invoked.
 ///
@@ -38,7 +43,9 @@ pub const BufferResponse: Feature = Feature(2);
 /// - Trailers are only applicable to chunked or streaming responses
 pub const Trailers: Feature = Feature(4);
 #[derive(Debug, PartialEq)]
-/// Feature flag value used to configure host capabilities.
+/// Bitflag wrapper used to configure host capabilities.
+///
+/// Combine flags with `|` and pass the result to `admin::enable`.
 pub struct Feature(pub i32);
 impl BitOr for Feature {
     type Output = Feature;
@@ -47,11 +54,6 @@ impl BitOr for Feature {
         Feature(self.0 | rhs.0)
     }
 }
-/// Enables one or more host features and returns the host result code.
-pub fn enable(feature: Feature) -> i32 {
-    handler::enable_feature(feature.0)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
