@@ -1,22 +1,35 @@
 # http-wasm Guest Library
-[![Build](https://github.com/blndfsk/http-wasm-guest/actions/workflows/build.yml/badge.svg)](https://github.com/blndfsk/http-wasm-guest/actions/workflows/build.yml)
 
-This library implements the [Wasm Guest ABI](https://http-wasm.io/http-handler-abi/), used to interface with 
-[http-wasm](https://github.com/http-wasm). 
+[![Build](actions/workflows/build.yml/badge.svg)](actions/workflows/build.yml)
 
-The main use is for writing traefik-plugins in rust.
+This library provides a Rust implementation for the [Wasm Guest ABI](https://http-wasm.io/http-handler-abi/) and interfaces with
+[http-wasm](https://github.com/http-wasm).
 
-- Initial reference code from https://github.com/elisasre/http-wasm-rust/
-- API inspired by https://github.com/http-wasm/http-wasm-guest-tinygo
+It is designed for writing Traefik plugins in Rust, and works with any http-wasm compatible runtime.
+
+## Design Goals
+
+- Minimal dependency footprint: only the `log` crate is required at runtime.
+- Low-level `Byte` abstraction to enable all use-cases.
+- Memory-efficient data handling to suit constrained Wasm environments.
+
+## Credits
+
+- Initial reference code from [http-wasm-rust](https://github.com/elisasre/http-wasm-rust/)
+- API inspired by [http-wasm-guest-tinygo](https://github.com/http-wasm/http-wasm-guest-tinygo)
 
 ## Usage
 
-Implement the 'Guest'-Trait and register the plugin. 
+Add the dependency to your project:
+
+`cargo add http-wasm-guest`
+
+Implement the `Guest` trait and register the plugin. See the [examples](src/branch/main/examples) for complete code.
 
 ```rust
 use http_wasm_guest::{Guest, Request, Response, register};
 
-/// A simple plugin that adds a custom header to each request.
+/// A minimal plugin that adds a custom header to each request.
 struct Plugin;
 
 impl Guest for Plugin {
@@ -33,8 +46,15 @@ fn main() {
     register(plugin);
 }
 ```
-### Tests
-cargo test --lib -- --test-threads=1
 
-### Examples
-cargo build --target wasm32-wasip1 --examples
+### Build
+
+Add the WASI target for building the plugin:
+
+`rustup target add wasm32-wasip1`
+
+Build the plugin with
+
+`cargo build --target wasm32-wasip1 --release`
+
+### Deploy
