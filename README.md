@@ -1,7 +1,5 @@
 # http-wasm Guest Library
 
-[![Build](/actions/workflows/build.yml/badge.svg)](/actions/workflows/build.yml)
-
 This library provides a Rust implementation for the [Wasm Guest ABI](https://http-wasm.io/http-handler-abi/) and interfaces with
 [http-wasm](https://github.com/http-wasm).
 
