@@ -12,6 +12,7 @@ mod response;
 
 pub mod admin;
 pub mod feature;
+pub mod log;
 
 pub use body::Body;
 pub use bytes::Bytes;

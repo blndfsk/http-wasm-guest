@@ -69,32 +69,6 @@ mod tests {
     }
 
     #[test]
-    fn test_header_names() {
-        let r = Request::default();
-        let sut = r.header().names();
-        assert_eq!(2, sut.len());
-        assert_eq!(sut, vec![Bytes::from("X-FOO"), Bytes::from("x-bar")]);
-    }
-    #[test]
-    fn test_header_values() {
-        let r = Request::default();
-        let sut = r.header().values(&Bytes::from("value"));
-        assert!(!sut.is_empty());
-        assert!(sut.contains(&Bytes::from("test1")));
-    }
-    #[test]
-    fn test_header_get() {
-        let r = Request::default();
-        let sut = r.header().get();
-        let h1 = Bytes::from("X-FOO");
-        let h2 = Bytes::from("x-bar");
-        assert!(!sut.is_empty());
-        assert!(sut.contains_key(&h1));
-        assert!(sut.contains_key(&h2));
-        assert_eq!(sut.len(), 2);
-        assert_eq!(sut.get(&h1), Some(&vec!(Bytes::from("test1"))));
-    }
-    #[test]
     fn test_version() {
         let r = Request::default();
         let sut = r.version();

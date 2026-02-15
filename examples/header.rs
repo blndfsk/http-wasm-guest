@@ -13,7 +13,9 @@ use http_wasm_guest::{
 };
 
 /// A simple plugin that adds a custom header to each request.
-struct Plugin;
+struct Plugin {
+    header: (String, String),
+}
 
 impl Guest for Plugin {
     /// Handles incoming requests by adding the `X-Bar: bar` header.
@@ -25,14 +27,16 @@ impl Guest for Plugin {
     /// # Returns
     /// Returns a tuple `(true, 0)` to indicate the request should continue.
     fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
-        let header = request.header();
-        header.add(b"X-Bar", b"bar");
+        let (name, value) = &self.header;
+        request.header().add(name.as_bytes(), value.as_bytes());
         (true, 0)
     }
 }
 
 /// Registers the plugin with the http-wasm runtime.
 fn main() {
-    let plugin = Plugin;
+    let plugin = Plugin {
+        header: ("X-Foo".to_string(), "foo".to_string()),
+    };
     register(plugin);
 }

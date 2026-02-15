@@ -1,0 +1,10 @@
+displayName: header
+runtime: wasm
+type: middleware
+
+summary: "add header to request"
+
+testData:
+  headers:
+    name: X-Bar
+    value: test

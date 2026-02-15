@@ -24,11 +24,19 @@ impl Header {
         handler::header_names(self.0).iter().map(|h| Bytes::from(h.clone())).collect()
     }
 
+    /// Return the first value for the given header name, if present.
+    ///
+    /// The `name` is matched by the host according to its header normalization
+    /// rules (often case-insensitive).
+    pub fn get(&self, name: &[u8]) -> Option<Bytes> {
+        handler::header_values(self.0, name).first().map(|h| Bytes::from(h.clone()))
+    }
+
     /// Return all values for the given header name.
     ///
     /// The `name` is matched by the host according to its header normalization
     /// rules (often case-insensitive).
-    pub fn values(&self, name: &[u8]) -> Vec<Bytes> {
+    pub fn get_all(&self, name: &[u8]) -> Vec<Bytes> {
         handler::header_values(self.0, name)
             .iter()
             .map(|h| Bytes::from(h.clone()))
@@ -53,13 +61,59 @@ impl Header {
     /// Return all headers as a map of names to value lists.
     ///
     /// This collects all names and then queries each set of values.
-    pub fn get(&self) -> HashMap<Bytes, Vec<Bytes>> {
+    pub fn values(&self) -> HashMap<Bytes, Vec<Bytes>> {
         let headers = self.names();
-        let mut result = HashMap::with_capacity(headers.len());
+        let mut result: HashMap<Bytes, Vec<Bytes>> = HashMap::with_capacity(headers.len());
         for key in headers {
-            let values = self.values(&key);
-            result.insert(key, values);
+            let mut values = self.get_all(&key);
+            match result.get_mut(&key) {
+                Some(val) => {
+                    val.append(&mut values);
+                }
+                None => {
+                    result.insert(key, values);
+                }
+            }
         }
         result
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_all() {
+        let h = Header::kind(0);
+        let sut = h.get_all(b"x-bar");
+        assert!(sut.contains(&Bytes::from("test2")));
+    }
+    #[test]
+    fn test_get_unknown_name() {
+        let h = Header::kind(0);
+        let sut = h.get(b"x-foo");
+        assert_eq!(sut, None);
+    }
+
+    #[test]
+    fn test_header_names() {
+        let h = Header::kind(0);
+        let sut = h.names();
+        assert_eq!(3, sut.len());
+    }
+    #[test]
+    fn test_header_get_all() {
+        let h = Header::kind(0);
+        let sut = h.get_all(&Bytes::from("x-bar"));
+        assert_eq!(sut.len(), 2);
+        assert!(sut.contains(&Bytes::from("test2")));
+    }
+    #[test]
+    fn test_header_values() {
+        let h = Header::kind(0);
+        let sut = h.values();
+        assert_eq!(sut.len(), 3);
+        assert_eq!(sut.get(&Bytes::from("X-FOO")), Some(&vec!(Bytes::from("test1"))));
+        assert_eq!(sut.get(&Bytes::from("x-bar")).unwrap().len(), 2);
     }
 }

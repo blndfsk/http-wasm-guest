@@ -1,0 +1,8 @@
+displayName: info
+runtime: wasm
+type: middleware
+
+summary: "log request information"
+
+testData:
+  config: empty1
