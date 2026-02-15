@@ -35,10 +35,7 @@ impl Guest for Plugin {
 }
 
 fn main() {
-    // Initialize logger
-    host::admin::init().expect("error initializing logger");
-    let _config = host::admin::config();
-    info!("{}", _config);
+    host::log::init().expect("error initializing logger");
     let plugin = Plugin;
     register(plugin);
 }

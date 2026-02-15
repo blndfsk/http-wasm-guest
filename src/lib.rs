@@ -38,7 +38,7 @@ pub trait Guest {
     ///
     /// Use this hook to inspect or mutate headers and body before the response
     /// is sent back to the client.
-    fn handle_response(&self, _request: &Request, _response: &Response) {}
+    fn handle_response(&self, _req_ctx: i32, _request: &Request, _response: &Response, _is_error: bool) {}
 }
 
 static GUEST: OnceLock<Handler> = OnceLock::new();
@@ -64,8 +64,8 @@ fn http_request() -> i64 {
 }
 
 #[unsafe(export_name = "handle_response")]
-fn http_response(_req_ctx: i32, _is_error: i32) {
+fn http_response(req_ctx: i32, is_error: i32) {
     if let Some(handler) = GUEST.get() {
-        handler.guest.handle_response(&REQ, &RES)
+        handler.guest.handle_response(req_ctx, &REQ, &RES, is_error == 1)
     };
 }

@@ -1,21 +1,21 @@
 #[rustfmt::skip]
 #[link(wasm_import_module = "http_handler")]
 unsafe extern "C" {
-    pub(crate) unsafe fn log(level: i32, buf: *const u8, length: i32);
+    pub(crate) unsafe fn log(level: i32, buf: *const u8, len: i32);
     pub(crate) unsafe fn log_enabled(level: i32) -> i32;
-    pub(crate) unsafe fn get_config(buf: *const u8, limit: i32) -> i32;
-    pub(crate) unsafe fn get_method(buf: *const u8, limit: i32) -> i32;
-    pub(crate) unsafe fn set_method(ptr: *const u8, length: i32);
-    pub(crate) unsafe fn get_uri(ptr: *const u8, buf_limit: i32) -> i32;
-    pub(crate) unsafe fn set_uri(ptr: *const u8, message_len: i32);
-    pub(crate) unsafe fn get_protocol_version(ptr: *const u8, message_len: i32) -> i32;
-    pub(crate) unsafe fn add_header_value(kind: i32, name_ptr: *const u8, name_len: i32, value_ptr: *const u8, value_len: i32,);
-    pub(crate) unsafe fn set_header_value(kind: i32, name_ptr: *const u8, name_len: i32, value_ptr: *const u8, value_len: i32,);
-    pub(crate) unsafe fn remove_header(kind: i32, name_ptr: *const u8, name_len: i32);
+    pub(crate) unsafe fn get_config(buf: *const u8, buf_limit: i32) -> i32;
+    pub(crate) unsafe fn get_method(buf: *const u8, buf_limit: i32) -> i32;
+    pub(crate) unsafe fn set_method(method: *const u8, len: i32);
+    pub(crate) unsafe fn get_uri(buf: *const u8, buf_limit: i32) -> i32;
+    pub(crate) unsafe fn set_uri(uri: *const u8, len: i32);
+    pub(crate) unsafe fn get_protocol_version(buf: *const u8, buf_limit: i32) -> i32;
+    pub(crate) unsafe fn add_header_value(kind: i32, name: *const u8, name_len: i32, value: *const u8, value_len: i32,);
+    pub(crate) unsafe fn set_header_value(kind: i32, name: *const u8, name_len: i32, value: *const u8, value_len: i32,);
+    pub(crate) unsafe fn remove_header(kind: i32, name: *const u8, len: i32);
     pub(crate) unsafe fn get_header_names(kind: i32, buf: *const u8, buf_limit: i32) -> i64;
-    pub(crate) unsafe fn get_header_values(kind: i32, name_ptr: *const u8, name_len: i32, buf: *const u8, buf_limit: i32,) -> i64;
-    pub(crate) unsafe fn read_body(kind: i32, ptr: *const u8, buf_limit: i32) -> i64;
-    pub(crate) unsafe fn write_body(kind: i32, ptr: *const u8, message_len: i32);
+    pub(crate) unsafe fn get_header_values(kind: i32, name: *const u8, len: i32, buf: *const u8, buf_limit: i32,) -> i64;
+    pub(crate) unsafe fn read_body(kind: i32, buf: *const u8, buf_limit: i32) -> i64;
+    pub(crate) unsafe fn write_body(kind: i32, body: *const u8, len: i32);
     pub(crate) unsafe fn get_status_code() -> i32;
     pub(crate) unsafe fn set_status_code(code: i32);
     pub(crate) unsafe fn enable_features(feature: i32) -> i32;
@@ -27,8 +27,11 @@ pub mod overrides {
     use std::ptr;
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn log_enabled(_level: i32) -> i32 {
-        0
+    pub extern "C" fn log_enabled(level: i32) -> i32 {
+        match level {
+            0..=3 => 1,
+            _ => 0,
+        }
     }
 
     #[unsafe(no_mangle)]

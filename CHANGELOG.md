@@ -1,3 +1,14 @@
+## v0.9.0
+### New
+- Add header and info example configs
+- provide script for easy test-deployment of examples
+
+### API-Change
+- `header.values` and `header.get` renamed to better reflect returned values
+- feature flags moved to the admin package
+- revert trait based abstractions
+- expose req_ctx and isError to response-handler
+
 ## v0.8.0
 API-Change: public API refactor to use trait-based request/response/body/header abstractions.
 Documentation: refreshed public API docs and feature flag descriptions.
