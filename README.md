@@ -22,7 +22,7 @@ Add the dependency to your project:
 
 `cargo add http-wasm-guest`
 
-Implement the `Guest` trait and register the plugin. See the [examples](src/branch/main/examples) for complete code.
+Implement the `Guest` trait and register the plugin. See the [examples](/examples) for complete code.
 
 ```rust
 use http_wasm_guest::{Guest, Request, Response, register};
@@ -56,3 +56,11 @@ Build the plugin with
 `cargo build --target wasm32-wasip1 --release`
 
 ### Deploy
+
+[Install your plugin](https://plugins.traefik.io/install)
+```
+plugins/
+└── src
+    └── plugindemowasm
+        └── plugin.wasm
+```

@@ -42,8 +42,8 @@ pub(crate) fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
     let vec = unsafe {
         let ptr = buf.as_mut_ptr();
         let length = ffi::get_header_values(kind, name.as_ptr(), name.len() as i32, ptr, len);
-        let new_buf = Vec::from_raw_parts(ptr, length as usize, len as usize);
-        split(new_buf.as_slice(), count, len)
+        let new_buf = std::slice::from_raw_parts(ptr, length as usize);
+        split(new_buf, count, len)
     };
     std::mem::forget(buf);
     vec
@@ -60,8 +60,8 @@ pub(crate) fn header_names(kind: i32) -> Vec<Box<[u8]>> {
     let vec = unsafe {
         let ptr = buf.as_mut_ptr();
         let length = ffi::get_header_names(kind, ptr, len);
-        let new_buf = Vec::from_raw_parts(ptr, length as usize, len as usize);
-        split(new_buf.as_slice(), count, len)
+        let new_buf = std::slice::from_raw_parts(ptr, length as usize);
+        split(new_buf, count, len)
     };
     std::mem::forget(buf);
     vec
@@ -146,6 +146,7 @@ fn split(buf: &[u8], count: i32, len: i32) -> Vec<Box<[u8]>> {
     out
 }
 
+/// takes an array of u8 and splits on the NUL-Byte
 fn split_u8_nul(src: &[u8]) -> Vec<&[u8]> {
     let mut out = Vec::new();
     let mut start_index: usize = 0;

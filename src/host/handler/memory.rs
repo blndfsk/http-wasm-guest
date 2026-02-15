@@ -37,11 +37,7 @@ impl Buffer {
 pub(crate) fn buffer() -> RwLockWriteGuard<'static, LazyLock<Buffer>> {
     match BUFFER.write() {
         Ok(buf) => buf,
-        Err(err) => {
-            log::error!("{}", err);
-            BUFFER.clear_poison();
-            buffer()
-        }
+        Err(err) => panic!("{}", err),
     }
 }
 

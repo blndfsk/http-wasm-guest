@@ -1,16 +1,14 @@
 //! Example plugin that logs HTTP request information.
 //!
 //! This plugin demonstrates how to use the http-wasm-guest API to
-//! log request metadata, headers, and enable request body buffering.
+//! log request metadata, headers
 //!
 //! # Features
 //! - Logs HTTP version, method, and URI
 //! - Logs all request headers
-//! - Enables buffering of the request body (via BufferRequest)
 //!
 //! # Usage
 //! Register the plugin and initialize logging in `main`.
-
 use http_wasm_guest::{
     Guest,
     host::{self, Request, Response},
@@ -24,16 +22,23 @@ struct Plugin;
 impl Guest for Plugin {
     /// Handles incoming requests by logging metadata and headers.
     fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
-        info!("{} {} {}", request.version(), request.method(), request.uri());
-        info!("{:?}", request.header().get());
+        info!("Request: {} {} {}", request.method(), request.version(), request.uri());
+        for (key, value) in request.header().values() {
+            info!(
+                "Header: {} [ {}]",
+                key,
+                value.iter().fold(String::new(), |acc, b| acc + &b.to_string() + " ")
+            );
+        }
         (true, 0)
     }
 }
 
 fn main() {
-    // Initialize logger and enable request body buffering.
+    // Initialize logger
     host::admin::init().expect("error initializing logger");
-    host::admin::enable(host::feature::BufferRequest);
+    let _config = host::admin::config();
+    info!("{}", _config);
     let plugin = Plugin;
     register(plugin);
 }

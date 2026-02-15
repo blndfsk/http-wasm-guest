@@ -1,11 +1,11 @@
 #[rustfmt::skip]
 #[link(wasm_import_module = "http_handler")]
 unsafe extern "C" {
-    pub(crate) unsafe fn log(level: i32, message: *const u8, message_len: i32);
+    pub(crate) unsafe fn log(level: i32, buf: *const u8, length: i32);
     pub(crate) unsafe fn log_enabled(level: i32) -> i32;
-    pub(crate) unsafe fn get_config(buf: *const u8, buf_limit: i32) -> i32;
-    pub(crate) unsafe fn get_method(buf: *const u8, buf_limit: i32) -> i32;
-    pub(crate) unsafe fn set_method(ptr: *const u8, message_len: i32);
+    pub(crate) unsafe fn get_config(buf: *const u8, limit: i32) -> i32;
+    pub(crate) unsafe fn get_method(buf: *const u8, limit: i32) -> i32;
+    pub(crate) unsafe fn set_method(ptr: *const u8, length: i32);
     pub(crate) unsafe fn get_uri(ptr: *const u8, buf_limit: i32) -> i32;
     pub(crate) unsafe fn set_uri(ptr: *const u8, message_len: i32);
     pub(crate) unsafe fn get_protocol_version(ptr: *const u8, message_len: i32) -> i32;
@@ -43,31 +43,29 @@ pub mod overrides {
     pub extern "C" fn set_status_code(_code: i32) {}
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_uri(buf: *const u8, _buf_limit: i32) -> i32 {
-        copy(br#"https://test"#, buf)
+    pub extern "C" fn get_uri(buf: *const u8, buf_limit: i32) -> i32 {
+        copy(br#"https://test"#, buf, buf_limit)
     }
 
     #[unsafe(no_mangle)]
     pub extern "C" fn set_uri(_buf: *const u8, _message_len: i32) {}
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_config(buf: *mut u8, _buf_limit: i32) -> i32 {
-        let m = br#"{ "config" : "test",}"#;
-        unsafe { buf.copy_from(m.as_ptr(), m.len()) };
-        m.len() as i32
+    pub extern "C" fn get_config(buf: *mut u8, buf_limit: i32) -> i32 {
+        copy(br#"{ "config" : "test1",}"#, buf, buf_limit)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_method(buf: *const u8, _buf_limit: i32) -> i32 {
-        copy(b"GET", buf)
+    pub extern "C" fn get_method(buf: *const u8, buf_limit: i32) -> i32 {
+        copy(b"GET", buf, buf_limit)
     }
 
     #[unsafe(no_mangle)]
     pub extern "C" fn set_method(_ptr: *const u8, _message_len: i32) {}
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_protocol_version(buf: *const u8, _message_len: i32) -> i32 {
-        copy(b"HTTP/2.0", buf)
+    pub extern "C" fn get_protocol_version(buf: *const u8, message_len: i32) -> i32 {
+        copy(b"HTTP/2.0", buf, message_len)
     }
 
     #[unsafe(no_mangle)]
@@ -81,38 +79,38 @@ pub mod overrides {
     pub extern "C" fn remove_header(_kind: i32, _name_ptr: *const u8, _name_len: i32) {}
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn read_body(_kind: i32, buf: *mut u8, _buf_limit: i32) -> i64 {
-        let m = b"<html><body>test</body>";
-        unsafe { buf.copy_from(m.as_ptr(), m.len()) };
-        1i64 << 32 | m.len() as i64
+    pub extern "C" fn read_body(_kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
+        1i64 << 32 | copy(b"<html><body>test</body>", buf, buf_limit) as i64
     }
     #[unsafe(no_mangle)]
     pub extern "C" fn write_body(_kind: i32, _ptr: *const u8, _message_len: i32) {}
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_header_names(_kind: i32, buf: *mut u8, _buf_limit: i32) -> i64 {
-        let m = b"X-FOO\0x-bar\0";
-        unsafe { buf.copy_from(m.as_ptr(), m.len()) };
-        2i64 << 32 | m.len() as i64
+    pub extern "C" fn get_header_names(_kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
+        3i64 << 32 | copy(b"X-FOO\0x-bar\0x-baz\0", buf, buf_limit) as i64
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_header_values(_kind: i32, _name_ptr: *const u8, _name_len: i32, buf: *mut u8, _buf_limit: i32) -> i64 {
-        let m = b"test1\0";
-        unsafe { buf.copy_from(m.as_ptr(), m.len()) };
-        1i64 << 32 | m.len() as i64
+    pub extern "C" fn get_header_values(_kind: i32, name_ptr: *const u8, name_len: i32, buf: *mut u8, buf_limit: i32) -> i64 {
+        let name = unsafe { std::slice::from_raw_parts(name_ptr, name_len as usize) };
+        match name {
+            b"X-FOO" => 1i64 << 32 | copy(b"test1\0", buf, buf_limit) as i64,
+            b"x-bar" => 2i64 << 32 | copy(b"test2\0test3\0", buf, buf_limit) as i64,
+            b"x-baz" => 1i64 << 32 | copy(b"test4\0", buf, buf_limit) as i64,
+            _ => 0i64,
+        }
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_source_addr(buf: *mut u8, _buf_limit: i32) -> i32 {
-        let m = b"192.168.1.1";
-        unsafe { buf.copy_from(m.as_ptr(), m.len()) };
-        m.len() as i32
+    pub extern "C" fn get_source_addr(buf: *mut u8, buf_limit: i32) -> i32 {
+        copy(b"192.168.1.1", buf, buf_limit)
     }
 
-    fn copy(src: &[u8], dst: *const u8) -> i32 {
+    fn copy(src: &[u8], dst: *const u8, limit: i32) -> i32 {
         let mut_dst = dst as *mut u8;
-        unsafe { ptr::copy(src.as_ptr(), mut_dst, src.len()) };
-        src.len() as i32
+        let len = limit as usize;
+        let len = if src.len() > len { len } else { src.len() };
+        unsafe { ptr::copy(src.as_ptr(), mut_dst, len) };
+        len as i32
     }
 }
