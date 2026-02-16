@@ -10,4 +10,4 @@ keywords = ["http-wasm", "wasm", "http", "plugin", "traefik"]
 categories = ["wasm", "web-programming"]
 
 [dependencies]
-log = "0.4"
+log = "0.4.29"
