@@ -49,8 +49,8 @@ jobs:
           echo "Tag version is higher; proceeding."
           echo "should_publish=true" >> "$GITHUB_OUTPUT"
 
-  publish:
-    name: Bump, commit, push, and publish
+  bump:
+    name: Bump, commit, push
     runs-on: ubuntu-latest
     needs: check_version
     if: needs.check_version.outputs.should_publish == 'true'
@@ -62,9 +62,6 @@ jobs:
 
       - name: Setup Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      - name: Build release
-        run: cargo build --release --verbose
 
       - name: Update Cargo.toml version from tag
         run: |
@@ -79,9 +76,24 @@ jobs:
           git add Cargo.toml Cargo.lock
           git commit -m "chore: bump version to ${TAG_VERSION}"
           git tag -f ${TAG_VERSION}
+          git push origin ${{ TAG_VERSION }} --force
 
-      - name: Push version bump commit
-        run: git push origin HEAD:main
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    needs: [check_version, bump]
+    if: needs.check_version.outputs.should_publish == 'true'
+    env:
+      TAG_VERSION: ${{ github.ref_name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Build release
+        run: cargo build --release --verbose
 
       - name: Publish to crates.io
         env:
