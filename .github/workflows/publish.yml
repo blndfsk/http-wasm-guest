@@ -21,16 +21,21 @@ jobs:
     outputs:
       should_publish: ${{ steps.version_check.outputs.should_publish }}
     steps:
-      - name: Checkout code
+      - name: Checkout tag (original)
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
 
       - id: version_check
         name: Compare tag vs Cargo.toml version
         run: |
-          VERSION=${TAG_VERSION#v}
-          CURRENT=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)
+          set -euo pipefail
 
-          if [ -z "$CURRENT" ]; then
+          VERSION=${TAG_VERSION#v}
+          CURRENT=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1 || true)
+
+          if [ -z "${CURRENT:-}" ]; then
             echo "Could not determine current version from Cargo.toml."
             echo "should_publish=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -50,47 +55,90 @@ jobs:
           echo "should_publish=true" >> "$GITHUB_OUTPUT"
 
   bump:
-    name: Bump, commit, push
+    name: Bump Cargo.toml to tag, commit, push branch and retag
     runs-on: ubuntu-latest
     needs: check_version
     if: needs.check_version.outputs.should_publish == 'true'
     env:
       TAG_VERSION: ${{ github.ref_name }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
     steps:
-      - name: Checkout code
+      - name: Checkout repository (full history)
         uses: actions/checkout@v4
+        with:
+          # Check out the original tagged commit first
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Prepare working branch
+        run: |
+          set -euo pipefail
+          # Ensure we have the default branch locally
+          git fetch origin "${DEFAULT_BRANCH}:${DEFAULT_BRANCH}"
+          # Move to the default branch to commit the bump on a branch (not detached)
+          git checkout "${DEFAULT_BRANCH}"
+          # Merge the tag commit content if needed (fast-forward if the tag was created from this branch)
+          # This will be a no-op if the tag already points to a commit reachable from the branch.
+          git merge --ff-only "${GITHUB_SHA}" || true
 
       - name: Setup Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
 
-      - name: Update Cargo.toml version from tag
+      - name: Update Cargo.toml version from tag and regenerate lockfile
         run: |
+          set -euo pipefail
           VERSION=${TAG_VERSION#v}
           sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" Cargo.toml
           cargo generate-lockfile
 
-      - name: Commit Cargo.toml version update
+      - name: Commit bump and push branch
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          set -euo pipefail
           git add Cargo.toml Cargo.lock
           git commit -m "chore: bump version to ${TAG_VERSION}"
-          git tag -f ${TAG_VERSION}
-          git push origin ${{ TAG_VERSION }} --force
+          # Push the commit to the default branch
+          git push origin "HEAD:${DEFAULT_BRANCH}"
+
+      - name: Force retag to bumped commit and push tag
+        run: |
+          set -euo pipefail
+          # Move tag to the new commit on the default branch
+          git tag -f "${TAG_VERSION}"
+          git push origin "${TAG_VERSION}" --force
 
   publish:
-    name: publish
+    name: Publish to crates.io (using retagged commit)
     runs-on: ubuntu-latest
     needs: [check_version, bump]
     if: needs.check_version.outputs.should_publish == 'true'
     env:
       TAG_VERSION: ${{ github.ref_name }}
     steps:
-      - name: Checkout code
+      - name: Checkout repository (ensure updated tag)
         uses: actions/checkout@v4
+        with:
+          # Start from the original event ref
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Fetch updated tags and checkout retagged commit
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          # Ensure we're exactly at the updated tag commit
+          git checkout "tags/${TAG_VERSION}"
 
       - name: Setup Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
 
       - name: Build release
         run: cargo build --release --verbose
@@ -98,4 +146,4 @@ jobs:
       - name: Publish to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish --locked --token $CARGO_REGISTRY_TOKEN --dry-run
+        run: cargo publish --token "$CARGO_REGISTRY_TOKEN" --dry-run
