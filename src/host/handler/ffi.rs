@@ -35,7 +35,7 @@ pub mod overrides {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn log(_level: i32, _message: *const u8, _message_len: i32) {}
+    pub extern "C" fn log(_level: i32, _buf: *const u8, _len: i32) {}
 
     #[unsafe(no_mangle)]
     pub extern "C" fn get_status_code() -> i32 {
@@ -51,10 +51,10 @@ pub mod overrides {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn set_uri(_buf: *const u8, _message_len: i32) {}
+    pub extern "C" fn set_uri(_uri: *const u8, _len: i32) {}
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_config(buf: *mut u8, buf_limit: i32) -> i32 {
+    pub extern "C" fn get_config(buf: *const u8, buf_limit: i32) -> i32 {
         copy(br#"{ "config" : "test1",}"#, buf, buf_limit)
     }
 
@@ -64,39 +64,37 @@ pub mod overrides {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn set_method(_ptr: *const u8, _message_len: i32) {}
+    pub extern "C" fn set_method(_method: *const u8, _len: i32) {}
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_protocol_version(buf: *const u8, message_len: i32) -> i32 {
-        copy(b"HTTP/2.0", buf, message_len)
+    pub extern "C" fn get_protocol_version(buf: *const u8, buf_limit: i32) -> i32 {
+        copy(b"HTTP/2.0", buf, buf_limit)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn add_header_value(_kind: i32, _name_ptr: *const u8, _name_len: i32, _value_ptr: *const u8, _value_len: i32) {
-    }
+    pub extern "C" fn add_header_value(_kind: i32, _name: *const u8, _name_len: i32, _value: *const u8, _value_len: i32) {}
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn set_header_value(_kind: i32, _name_ptr: *const u8, _name_len: i32, _value_ptr: *const u8, _value_len: i32) {
-    }
+    pub extern "C" fn set_header_value(_kind: i32, _name: *const u8, _name_len: i32, _value: *const u8, _value_len: i32) {}
     #[unsafe(no_mangle)]
-    pub extern "C" fn remove_header(_kind: i32, _name_ptr: *const u8, _name_len: i32) {}
+    pub extern "C" fn remove_header(_kind: i32, _name: *const u8, _len: i32) {}
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn read_body(_kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
+    pub extern "C" fn read_body(_kind: i32, buf: *const u8, buf_limit: i32) -> i64 {
         1i64 << 32 | copy(b"<html><body>test</body>", buf, buf_limit) as i64
     }
     #[unsafe(no_mangle)]
-    pub extern "C" fn write_body(_kind: i32, _ptr: *const u8, _message_len: i32) {}
+    pub extern "C" fn write_body(_kind: i32, _body: *const u8, _len: i32) {}
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_header_names(_kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
+    pub extern "C" fn get_header_names(_kind: i32, buf: *const u8, buf_limit: i32) -> i64 {
         3i64 << 32 | copy(b"X-FOO\0x-bar\0x-baz\0", buf, buf_limit) as i64
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_header_values(_kind: i32, name_ptr: *const u8, name_len: i32, buf: *mut u8, buf_limit: i32) -> i64 {
-        let name = unsafe { std::slice::from_raw_parts(name_ptr, name_len as usize) };
-        match name {
+    pub extern "C" fn get_header_values(_kind: i32, name: *const u8, len: i32, buf: *const u8, buf_limit: i32) -> i64 {
+        let name_slice = unsafe { std::slice::from_raw_parts(name, len as usize) };
+        match name_slice {
             b"X-FOO" => 1i64 << 32 | copy(b"test1\0", buf, buf_limit) as i64,
             b"x-bar" => 2i64 << 32 | copy(b"test2\0test3\0", buf, buf_limit) as i64,
             b"x-baz" => 1i64 << 32 | copy(b"test4\0", buf, buf_limit) as i64,
@@ -105,7 +103,7 @@ pub mod overrides {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn get_source_addr(buf: *mut u8, buf_limit: i32) -> i32 {
+    pub extern "C" fn get_source_addr(buf: *const u8, buf_limit: i32) -> i32 {
         copy(b"192.168.1.1", buf, buf_limit)
     }
 
