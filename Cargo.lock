@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "http-wasm-guest"
-version = "0.9.5"
+version = "0.9.2"
 dependencies = [
  "log",
 ]

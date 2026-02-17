@@ -1,4 +1,4 @@
-## v0.9.0
+## v0.9.2
 ### New
 - Add header and info example configs
 - provide script for easy test-deployment of examples

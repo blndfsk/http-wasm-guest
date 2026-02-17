@@ -1,0 +1,181 @@
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  pull_request:
+    branches:
+      - release
+    types:
+      - closed
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  determine_trigger:
+    name: Determine if workflow should run
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Check event context
+        id: check
+        run: |
+          set -euo pipefail
+
+          SHOULD_RUN="false"
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/release" ]; then
+            SHOULD_RUN="true"
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.merged }}" = "true" ] && [ "${{ github.event.pull_request.base.ref }}" = "release" ]; then
+            SHOULD_RUN="true"
+          fi
+
+          echo "should_run=${SHOULD_RUN}" >> "$GITHUB_OUTPUT"
+
+  verify_and_tag:
+    name: Verify version and create tag
+    runs-on: ubuntu-latest
+    needs: determine_trigger
+    if: needs.determine_trigger.outputs.should_run == 'true'
+    outputs:
+      tag_name: ${{ steps.out.outputs.tag_name }}
+      should_continue: ${{ steps.out.outputs.should_continue }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Extract version from Cargo.toml
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1 || true)
+          if [ -z "${VERSION:-}" ]; then
+            echo "No version found in Cargo.toml"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate version is highest compared to tags
+        id: highest
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          git fetch --tags --force >/dev/null 2>&1 || true
+          LAST_TAG=$(git tag -l 'v*' | sed 's/^v//' | sort -V | tail -n1 || true)
+          echo "Current Cargo.toml version: $VERSION"
+          echo "Highest existing tag: ${LAST_TAG:-<none>}"
+          SHOULD_CONTINUE="true"
+          if [ -n "${LAST_TAG:-}" ]; then
+            HIGHEST=$(printf "%s\n%s" "$LAST_TAG" "$VERSION" | sort -V | tail -n1)
+            if [ "$HIGHEST" != "$VERSION" ]; then
+              echo "Cargo.toml version ($VERSION) is not higher than the highest tag ($LAST_TAG)."
+              SHOULD_CONTINUE="false"
+            fi
+          fi
+          echo "should_continue=${SHOULD_CONTINUE}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure Git author
+        if: steps.highest.outputs.should_continue == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        if: steps.highest.outputs.should_continue == 'true'
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v${VERSION}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists."
+          else
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+          fi
+          echo "tag_name=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Set outputs
+        id: out
+        run: |
+          set -euo pipefail
+          echo "tag_name=${{ steps.version.outputs.version && format('v{0}', steps.version.outputs.version) }}" >> "$GITHUB_OUTPUT"
+          echo "should_continue=${{ steps.highest.outputs.should_continue }}" >> "$GITHUB_OUTPUT"
+
+  github_release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: verify_and_tag
+    if: needs.verify_and_tag.outputs.should_continue == 'true'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.verify_and_tag.outputs.tag_name }}
+          name: Release ${{ needs.verify_and_tag.outputs.tag_name }}
+          generate_release_notes: true
+
+  publish_crate:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: verify_and_tag
+    if: needs.verify_and_tag.outputs.should_continue == 'true'
+    env:
+      TAG_NAME: ${{ needs.verify_and_tag.outputs.tag_name }}
+    steps:
+      - name: Checkout tagged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG_NAME }}
+          fetch-depth: 0
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy,rustfmt
+
+      - name: Preflight - fmt check
+        run: cargo fmt --all --check
+
+      - name: Preflight - clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Preflight - package manifest
+        run: cargo package --list
+
+      - name: Build release
+        run: cargo build --release --verbose
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          PUBLISH_DRY_RUN: ${{ vars.PUBLISH_DRY_RUN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
+            echo "CARGO_REGISTRY_TOKEN secret is not set. Configure it in repository secrets."
+            exit 1
+          fi
+          DRY_FLAG=""
+          if [ "${PUBLISH_DRY_RUN:-}" = "true" ]; then
+            DRY_FLAG="--dry-run"
+            echo "Dry-run enabled; publishing will be simulated."
+          fi
+          cargo publish --token "$CARGO_REGISTRY_TOKEN" ${DRY_FLAG}
