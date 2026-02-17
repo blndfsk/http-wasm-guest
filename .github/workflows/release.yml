@@ -26,11 +26,6 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
           fetch-depth: 0
 
-      - name: Setup Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-
       - id: match_check
         name: Validate Cargo.toml version equals release tag and is highest
         run: |
