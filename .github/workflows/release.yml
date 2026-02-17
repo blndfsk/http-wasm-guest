@@ -1,53 +1,29 @@
 name: Release
 
 permissions:
-  contents: write
+  contents: read
 
 on:
-  pull_request:
-    branches:
-      - release
+  release:
     types:
-      - closed
+      - published
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  determine_trigger:
-    name: Determine if workflow should run
+  verify_tag_matches_cargo:
+    name: Verify release tag equals Cargo.toml version (and is highest)
     runs-on: ubuntu-latest
+    env:
+      TAG_VERSION: ${{ github.event.release.tag_name }}
     outputs:
-      should_run: ${{ steps.check.outputs.should_run }}
+      should_publish: ${{ steps.match_check.outputs.should_publish }}
     steps:
-      - name: Check event context
-        id: check
-        run: |
-          set -euo pipefail
-
-          SHOULD_RUN="false"
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/release" ]; then
-            SHOULD_RUN="true"
-          fi
-
-          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.merged }}" = "true" ] && [ "${{ github.event.pull_request.base.ref }}" = "release" ]; then
-            SHOULD_RUN="true"
-          fi
-
-          echo "should_run=${SHOULD_RUN}" >> "$GITHUB_OUTPUT"
-
-  verify_and_tag:
-    name: Verify version and create tag
-    runs-on: ubuntu-latest
-    needs: determine_trigger
-    if: needs.determine_trigger.outputs.should_run == 'true'
-    outputs:
-      tag_name: ${{ steps.out.outputs.tag_name }}
-      should_continue: ${{ steps.out.outputs.should_continue }}
-    steps:
-      - name: Checkout repository
+      - name: Checkout code at release tag
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.release.tag_name }}
           fetch-depth: 0
 
       - name: Setup Rust toolchain
@@ -55,94 +31,68 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Extract version from Cargo.toml
-        id: version
+      - id: match_check
+        name: Validate Cargo.toml version equals release tag and is highest
         run: |
           set -euo pipefail
-          VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1 || true)
-          if [ -z "${VERSION:-}" ]; then
-            echo "No version found in Cargo.toml"
-            exit 1
-          fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Validate version is highest compared to tags
-        id: highest
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${TAG_VERSION}"
+          if [ -z "${TAG:-}" ]; then
+            echo "No tag name found in release event."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Release tag '$TAG' does not match expected 'vX.Y.Z' format."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          VERSION=${TAG#v}
+          # Extract version from Cargo.toml (root crate)
+          CURRENT=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1 || true)
+
+          if [ -z "${CURRENT:-}" ]; then
+            echo "Could not determine current version from Cargo.toml."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Release tag:     $TAG"
+          echo "Cargo.toml:      $CURRENT"
+
+          if [ "$CURRENT" != "$VERSION" ]; then
+            echo "Release tag ($VERSION) does not match Cargo.toml version ($CURRENT)."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Optional: ensure this tag is the highest semver among existing tags.
           git fetch --tags --force >/dev/null 2>&1 || true
           LAST_TAG=$(git tag -l 'v*' | sed 's/^v//' | sort -V | tail -n1 || true)
-          echo "Current Cargo.toml version: $VERSION"
-          echo "Highest existing tag: ${LAST_TAG:-<none>}"
-          SHOULD_CONTINUE="true"
-          if [ -n "${LAST_TAG:-}" ]; then
+          if [ -n "$LAST_TAG" ]; then
             HIGHEST=$(printf "%s\n%s" "$LAST_TAG" "$VERSION" | sort -V | tail -n1)
             if [ "$HIGHEST" != "$VERSION" ]; then
-              echo "Cargo.toml version ($VERSION) is not higher than the highest tag ($LAST_TAG)."
-              SHOULD_CONTINUE="false"
+              echo "Release tag ($VERSION) is not the highest known version (highest is $LAST_TAG)."
+              echo "should_publish=false" >> "$GITHUB_OUTPUT"
+              exit 0
             fi
           fi
-          echo "should_continue=${SHOULD_CONTINUE}" >> "$GITHUB_OUTPUT"
 
-      - name: Configure Git author
-        if: steps.highest.outputs.should_continue == 'true'
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Create and push tag
-        if: steps.highest.outputs.should_continue == 'true'
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
-          TAG="v${VERSION}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists."
-          else
-            git tag -a "$TAG" -m "Release $TAG"
-            git push origin "$TAG"
-          fi
-          echo "tag_name=$TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Set outputs
-        id: out
-        run: |
-          set -euo pipefail
-          echo "tag_name=${{ steps.version.outputs.version && format('v{0}', steps.version.outputs.version) }}" >> "$GITHUB_OUTPUT"
-          echo "should_continue=${{ steps.highest.outputs.should_continue }}" >> "$GITHUB_OUTPUT"
-
-  github_release:
-    name: Create GitHub Release
-    runs-on: ubuntu-latest
-    needs: verify_and_tag
-    if: needs.verify_and_tag.outputs.should_continue == 'true'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.verify_and_tag.outputs.tag_name }}
-          name: Release ${{ needs.verify_and_tag.outputs.tag_name }}
-          generate_release_notes: true
+          echo "Tag matches Cargo.toml and is highest; proceeding."
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
 
   publish_crate:
     name: Publish to crates.io
     runs-on: ubuntu-latest
-    needs: verify_and_tag
-    if: needs.verify_and_tag.outputs.should_continue == 'true'
-    env:
-      TAG_NAME: ${{ needs.verify_and_tag.outputs.tag_name }}
+    needs: verify_tag_matches_cargo
+    if: needs.verify_tag_matches_cargo.outputs.should_publish == 'true'
     steps:
-      - name: Checkout tagged commit
+      - name: Checkout code at release tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG_NAME }}
+          ref: ${{ github.event.release.tag_name }}
           fetch-depth: 0
 
       - name: Setup Rust toolchain
@@ -166,7 +116,7 @@ jobs:
       - name: Publish to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          PUBLISH_DRY_RUN: ${{ vars.PUBLISH_DRY_RUN }}
+          PUBLISH_TO_CARGO: ${{ vars.PUBLISH_TO_CARGO }}
         run: |
           set -euo pipefail
           if [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
@@ -174,8 +124,7 @@ jobs:
             exit 1
           fi
           DRY_FLAG="--dry-run"
-          if [ "${PUBLISH_CARGO:-}" = "true" ]; then
+          if [ "${PUBLISH_TO_CARGO:-}" = "true" ]; then
             DRY_FLAG=""
-            echo "Dry-run enabled; publishing will be simulated."
           fi
           cargo publish --token "$CARGO_REGISTRY_TOKEN" ${DRY_FLAG}
