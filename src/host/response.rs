@@ -8,10 +8,7 @@ static KIND_RES: i32 = 1;
 
 impl Default for Response {
     fn default() -> Self {
-        Self {
-            header: Header::kind(KIND_RES),
-            body: Body::kind(KIND_RES),
-        }
+        Self { header: Header::kind(KIND_RES), body: Body::kind(KIND_RES) }
     }
 }
 impl Response {

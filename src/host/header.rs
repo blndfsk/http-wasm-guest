@@ -37,10 +37,7 @@ impl Header {
     /// The `name` is matched by the host according to its header normalization
     /// rules (often case-insensitive).
     pub fn get_all(&self, name: &[u8]) -> Vec<Bytes> {
-        handler::header_values(self.0, name)
-            .iter()
-            .map(|h| Bytes::from(h.clone()))
-            .collect()
+        handler::header_values(self.0, name).iter().map(|h| Bytes::from(h.clone())).collect()
     }
 
     /// Set a header value, replacing any existing values.

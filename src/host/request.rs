@@ -8,15 +8,20 @@ static KIND_REQ: i32 = 0;
 
 impl Default for Request {
     fn default() -> Self {
-        Self {
-            header: Header::kind(KIND_REQ),
-            body: Body::kind(KIND_REQ),
-        }
+        Self { header: Header::kind(KIND_REQ), body: Body::kind(KIND_REQ) }
     }
 }
 
 impl Request {
-    /// Return the client source address as raw bytes.
+    /// Return the client source address (ip:port) as raw bytes.
+    ///
+    /// ## Example ##
+    /// - IPv6 b"[fe80::90f4:16ff:fee0:24b3%enp5s0]:41236"
+    /// - IPv4 b"1.1.1.1:12345"
+    ///
+    /// Supported are both IPv4 and IPv6
+    /// ## Note ##
+    /// A host who fails to get the remote address will trap (aka panic, "unreachable" instruction).
     pub fn source_addr(&self) -> Bytes {
         Bytes::from(handler::source_addr())
     }

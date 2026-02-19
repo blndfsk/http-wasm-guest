@@ -32,10 +32,7 @@ impl Log for HostLogger {
         if !self.enabled(record.metadata()) {
             return;
         }
-        handler::log(
-            map_to_host(record.metadata().level()),
-            format!("{}", record.args()).as_bytes(),
-        );
+        handler::log(map_to_host(record.metadata().level()), format!("{}", record.args()).as_bytes());
     }
 
     fn flush(&self) {}
@@ -55,11 +52,7 @@ pub fn init_with_level(level: Level) -> Result<(), SetLoggerError> {
 /// If the log-level is more restrictive on the host as the plugin tries to configure,
 /// the level is decremented until an enabled level is found.
 fn max_level(level: LevelFilter) -> LevelFilter {
-    if handler::log_enabled(level.to_level().map_or_else(|| 3, map_to_host)) {
-        level
-    } else {
-        level.decrement_severity()
-    }
+    if handler::log_enabled(level.to_level().map_or_else(|| 3, map_to_host)) { level } else { level.decrement_severity() }
 }
 /// Initialize the host-backed logger with the default Info level.
 ///

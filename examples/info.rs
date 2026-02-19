@@ -24,11 +24,7 @@ impl Guest for Plugin {
     fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
         info!("Request: {} {} {}", request.method(), request.version(), request.uri());
         for (key, value) in request.header().values() {
-            info!(
-                "Header: {} [ {}]",
-                key,
-                value.iter().fold(String::new(), |acc, b| acc + &b.to_string() + " ")
-            );
+            info!("Header: {} [ {}]", key, value.iter().fold(String::new(), |acc, b| acc + &b.to_string() + " "));
         }
         (true, 0)
     }
