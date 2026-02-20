@@ -4,11 +4,9 @@ permissions:
   contents: read
 
 on:
-  push:
-    branches: ["main"]
-
-  pull_request:
-    branches: ["main"]
+  schedule:
+    - cron: "00 01 * * *"
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
