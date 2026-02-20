@@ -1,7 +1,7 @@
 # http-wasm Guest Library
 
 [![crate](https://img.shields.io/crates/v/http-wasm-guest.svg)](https://crates.io/crates/http-wasm-guest)
-[![Test](https://github.com/blndfsk/http-wasm-guest/actions/workflows/test.yml/badge.svg)](https://github.com/blndfsk/http-wasm-guest/actions/workflows/build.yml)
+[![Test](https://github.com/blndfsk/http-wasm-guest/actions/workflows/test.yml/badge.svg)](https://github.com/blndfsk/http-wasm-guest/actions/workflows/test.yml)
 
 This library provides a Rust implementation for the [Wasm Guest ABI](https://http-wasm.io/http-handler-abi/) and interfaces with
 [http-wasm](https://github.com/http-wasm).
@@ -52,7 +52,7 @@ fn main() {
 
 ### Build
 
-Add the WASI target for building the plugin:
+Add the WASM target for building the plugin:
 
 `rustup target add wasm32-wasip1`
 
