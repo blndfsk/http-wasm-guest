@@ -5,7 +5,8 @@ on:
     - cron: "50 5 4,14,24 * *" # Runs three times a month
   workflow_dispatch: # Allows manual triggering
 
-permissions: read
+permissions:
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
