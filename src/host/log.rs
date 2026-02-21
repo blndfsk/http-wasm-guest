@@ -189,4 +189,29 @@ mod tests {
         // Should decrement to a lower severity level
         assert!(level < LevelFilter::Trace);
     }
+
+    #[test]
+    fn host_logger_log_direct_call() {
+        // Set max level high enough to allow Info messages
+        log::set_max_level(LevelFilter::Info);
+
+        // Create a log record directly and call LOGGER.log()
+        let record = log::Record::builder().level(Level::Info).target("test").args(format_args!("direct log test")).build();
+
+        // This should call handler::log internally
+        LOGGER.log(&record);
+    }
+
+    #[test]
+    fn host_logger_log_skips_disabled_level() {
+        // Set max level to Error only
+        log::set_max_level(LevelFilter::Error);
+
+        // Create a Debug record which should be filtered out
+        let record =
+            log::Record::builder().level(Level::Debug).target("test").args(format_args!("this should be skipped")).build();
+
+        // This should return early without calling handler::log
+        LOGGER.log(&record);
+    }
 }

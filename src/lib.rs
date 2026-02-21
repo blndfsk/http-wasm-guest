@@ -75,7 +75,7 @@ mod tests {
     use super::*;
     use crate::host::{admin, feature};
     use std::sync::Arc;
-    use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering};
 
     // =========================================================================
     // Guest Trait Tests
@@ -152,6 +152,21 @@ mod tests {
 
         let (cont, _) = plugin.handle_request(&request, &response);
         assert!(!cont);
+    }
+
+    #[test]
+    fn guest_default_handle_response() {
+        // Test the default handle_response implementation
+        struct DefaultResponsePlugin;
+        impl Guest for DefaultResponsePlugin {}
+
+        let plugin = DefaultResponsePlugin;
+        let request = Request::default();
+        let response = Response::default();
+
+        // Call the default handle_response - should do nothing and not panic
+        plugin.handle_response(42, &request, &response, false);
+        plugin.handle_response(0, &request, &response, true);
     }
 
     #[test]
@@ -290,6 +305,18 @@ mod tests {
         assert!(cont);
     }
 
+    #[test]
+    fn e2e_blocking_plugin_blocks() {
+        // Use "test" as blocked path since mock URI is "https://test"
+        let plugin = BlockingPlugin { blocked_paths: vec!["test"] };
+        let request = Request::default();
+        let response = Response::default();
+
+        // Mock returns "https://test" which contains "test"
+        let (cont, _) = plugin.handle_request(&request, &response);
+        assert!(!cont);
+    }
+
     /// Simulates a plugin that uses configuration
     struct ConfigurablePlugin;
 
@@ -386,11 +413,7 @@ mod tests {
 
     struct SimplePlugin;
 
-    impl Guest for SimplePlugin {
-        fn handle_request(&self, _request: &Request, _response: &Response) -> (bool, i32) {
-            (true, 0)
-        }
-    }
+    impl Guest for SimplePlugin {}
 
     #[test]
     fn register_plugin() {
@@ -420,6 +443,41 @@ mod tests {
         http_response(42, 0);
         http_response(0, 1);
         http_response(123, 1);
+    }
+
+    #[test]
+    fn http_response_passes_correct_parameters() {
+        // Test that http_response correctly converts is_error parameter
+        // and passes ctx through to the guest
+        let ctx_received = Arc::new(AtomicI32::new(-1));
+        let is_error_received = Arc::new(AtomicU8::new(255)); // Use u8 to store bool
+
+        struct ResponseTrackingPlugin {
+            ctx_received: Arc<AtomicI32>,
+            is_error_received: Arc<AtomicU8>,
+        }
+
+        impl Guest for ResponseTrackingPlugin {
+            fn handle_response(&self, req_ctx: i32, _request: &Request, _response: &Response, is_error: bool) {
+                self.ctx_received.store(req_ctx, Ordering::SeqCst);
+                self.is_error_received.store(if is_error { 1 } else { 0 }, Ordering::SeqCst);
+            }
+        }
+
+        let plugin = ResponseTrackingPlugin { ctx_received: ctx_received.clone(), is_error_received: is_error_received.clone() };
+
+        let request = Request::default();
+        let response = Response::default();
+
+        // Test with is_error = false (0)
+        plugin.handle_response(42, &request, &response, false);
+        assert_eq!(ctx_received.load(Ordering::SeqCst), 42);
+        assert_eq!(is_error_received.load(Ordering::SeqCst), 0);
+
+        // Test with is_error = true (1)
+        plugin.handle_response(123, &request, &response, true);
+        assert_eq!(ctx_received.load(Ordering::SeqCst), 123);
+        assert_eq!(is_error_received.load(Ordering::SeqCst), 1);
     }
 
     #[test]

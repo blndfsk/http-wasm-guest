@@ -161,4 +161,23 @@ mod tests {
         let values = header.get_all(&name);
         assert!(!values.is_empty());
     }
+
+    #[test]
+    fn header_values_map_with_duplicate_names() {
+        // kind=98 triggers duplicate header name test in mock
+        // Returns: X-DUP, X-OTHER, X-DUP (duplicate name)
+        let header = Header::kind(98);
+        let values_map = header.values();
+
+        // Should have 2 distinct header names (duplicates merged)
+        assert_eq!(values_map.len(), 2);
+
+        // X-DUP should have 2 values (merged from duplicate names)
+        let dup_values = values_map.get(&Bytes::from("X-DUP")).unwrap();
+        assert_eq!(dup_values.len(), 2);
+
+        // X-OTHER should have 1 value
+        let other_values = values_map.get(&Bytes::from("X-OTHER")).unwrap();
+        assert_eq!(other_values.len(), 1);
+    }
 }

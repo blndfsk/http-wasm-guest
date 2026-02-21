@@ -372,22 +372,23 @@ mod tests {
     #[test]
     fn test_header_names_overflow() {
         // kind=99 triggers overflow simulation in mock
-        // First call returns size > buffer, second call provides data
+        // First call returns size > buffer (2048), second call provides data
         let names = header_names(99);
-        // Should have 100 headers from the overflow mock
-        assert_eq!(names.len(), 100);
+        // Should have 200 headers from the overflow mock
+        assert_eq!(names.len(), 200);
         // Verify first header name format
-        assert!(names[0].starts_with(b"X-Header-"));
+        assert!(names[0].starts_with(b"X-Header-Name-Overflow-"));
     }
 
     #[test]
     fn test_header_values_overflow() {
         // kind=99 with X-OVERFLOW triggers overflow simulation
+        // Data exceeds 2048 byte buffer
         let values = header_values(99, b"X-OVERFLOW");
-        // Should have 50 values from the overflow mock
-        assert_eq!(values.len(), 50);
+        // Should have 150 values from the overflow mock
+        assert_eq!(values.len(), 150);
         // Verify value format
-        assert!(values[0].starts_with(b"overflow-value-"));
+        assert!(values[0].starts_with(b"overflow-header-value-"));
     }
 
     #[test]

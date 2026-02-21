@@ -160,25 +160,32 @@ pub(crate) mod mock {
     }
 
     /// Returns header names: X-FOO, x-bar, x-baz
+    /// For kind=98 (duplicate test), returns duplicate header names
     /// For kind=99 (overflow test), returns data larger than buffer
     /// Return value: count in upper 32 bits, length in lower 32 bits
     pub unsafe fn get_header_names(kind: i32, buf: *const u8, buf_limit: i32) -> i64 {
+        // kind=98 triggers duplicate header name test
+        if kind == 98 {
+            // Return duplicate header names: X-DUP appears twice
+            let data = b"X-DUP\0X-OTHER\0X-DUP\0";
+            let len = copy_to_buf(data, buf, buf_limit);
+            (3i64 << 32) | (len as i64)
         // kind=99 triggers overflow test
-        if kind == 99 {
-            // Generate the data first to get accurate size
+        } else if kind == 99 {
+            // Generate data larger than 2048 byte buffer to trigger overflow
             let mut data = Vec::new();
-            for i in 0..100 {
-                data.extend_from_slice(format!("X-Header-{:03}\0", i).as_bytes());
+            for i in 0..200 {
+                data.extend_from_slice(format!("X-Header-Name-Overflow-{:03}\0", i).as_bytes());
             }
             let data_len = data.len() as i32;
 
             if buf_limit < data_len {
                 // First call - report overflow with actual data size
-                (100i64 << 32) | (data_len as i64)
+                (200i64 << 32) | (data_len as i64)
             } else {
                 // Second call - provide the data
                 let len = copy_to_buf(&data, buf, buf_limit);
-                (100i64 << 32) | (len as i64)
+                (200i64 << 32) | (len as i64)
             }
         } else {
             let data = b"X-FOO\0x-bar\0x-baz\0";
@@ -197,22 +204,29 @@ pub(crate) mod mock {
     pub unsafe fn get_header_values(kind: i32, name: *const u8, name_len: i32, buf: *const u8, buf_limit: i32) -> i64 {
         let name_slice = unsafe { std::slice::from_raw_parts(name, name_len as usize) };
 
+        // kind=98 triggers duplicate header value test
+        if kind == 98 {
+            match name_slice {
+                b"X-DUP" => (1i64 << 32) | copy_to_buf(b"dup-value\0", buf, buf_limit) as i64,
+                b"X-OTHER" => (1i64 << 32) | copy_to_buf(b"other-value\0", buf, buf_limit) as i64,
+                _ => 0i64,
+            }
         // kind=99 with X-OVERFLOW triggers overflow test
-        if kind == 99 && name_slice == b"X-OVERFLOW" {
-            // Generate the data first to get accurate size
+        } else if kind == 99 && name_slice == b"X-OVERFLOW" {
+            // Generate data larger than 2048 byte buffer to trigger overflow
             let mut data = Vec::new();
-            for i in 0..50 {
-                data.extend_from_slice(format!("overflow-value-{:04}\0", i).as_bytes());
+            for i in 0..150 {
+                data.extend_from_slice(format!("overflow-header-value-{:04}\0", i).as_bytes());
             }
             let data_len = data.len() as i32;
 
             if buf_limit < data_len {
                 // First call - report overflow with actual data size
-                (50i64 << 32) | (data_len as i64)
+                (150i64 << 32) | (data_len as i64)
             } else {
                 // Second call - provide the data
                 let len = copy_to_buf(&data, buf, buf_limit);
-                (50i64 << 32) | (len as i64)
+                (150i64 << 32) | (len as i64)
             }
         } else {
             match name_slice {
