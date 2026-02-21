@@ -1,3 +1,22 @@
+## v0.9.3
+
+### Testing
+- Add comprehensive unit tests for all host modules
+- Add tests for header duplicates, logger, and response handling
+- Add GitHub Actions workflow for Miri testing
+
+### Bug Fixes (discovered via Miri)
+- **Fix memory leak from incorrect `mem::forget` usage** - Removed improper use of `std::mem::forget` on Vec buffers in `header_names()` and `header_values()` functions. This bug was triggered when HTTP headers exceeded the default 2048-byte buffer size, causing the overflow path to allocate a larger buffer that was never deallocated. Every request with large headers would leak memory.
+- **Fix potential undefined behavior in buffer overflow handling** - The overflow code path was incorrectly using the raw i64 return value as the buffer length, instead of properly splitting it into count and length components using `split_i64()`. This was triggered when headers exceeded the 2048-byte buffer, causing the code to interpret a large combined value as the slice length, leading to reads from uninitialized memory.
+
+### CI/CD
+- Add code coverage workflow with Codecov integration
+- Simplify and improve CI workflow jobs
+
+### Maintenance
+- Code formatting (rust fmt)
+- Documentation and formatting improvements
+
 ## v0.9.2
 ### New
 - Add header and info example configs
