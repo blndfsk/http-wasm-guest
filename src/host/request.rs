@@ -67,17 +67,67 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_method() {
-        let r = Request::default();
-        let sut = r.method();
-        assert_eq!("GET", sut.to_str().unwrap());
+    fn request_method() {
+        let request = Request::default();
+        let method = request.method();
+        // The mock returns "GET"
+        assert_eq!(method.to_str().unwrap(), "GET");
     }
 
     #[test]
-    fn test_version() {
-        let r = Request::default();
-        let sut = r.version();
-        assert!(!sut.is_empty());
-        assert_eq!(sut.as_ref(), b"HTTP/2.0");
+    fn request_version() {
+        let request = Request::default();
+        let version = request.version();
+        // The mock returns "HTTP/2.0"
+        assert!(!version.is_empty());
+        assert_eq!(version.to_str().unwrap(), "HTTP/2.0");
+    }
+
+    #[test]
+    fn request_uri() {
+        let request = Request::default();
+        let uri = request.uri();
+        // The mock returns "https://test"
+        assert!(uri.to_str().unwrap().contains("test"));
+    }
+
+    #[test]
+    fn request_source_addr() {
+        let request = Request::default();
+        let addr = request.source_addr();
+        // The mock returns "192.168.1.1"
+        assert_eq!(addr.to_str().unwrap(), "192.168.1.1");
+    }
+
+    #[test]
+    fn request_header_access() {
+        let request = Request::default();
+        let header = request.header();
+        // The mock provides headers: X-FOO, x-bar, x-baz
+        let names = header.names();
+        assert_eq!(names.len(), 3);
+    }
+
+    #[test]
+    fn request_body_access() {
+        let request = Request::default();
+        let body = request.body();
+        let content = body.read();
+        // The mock returns "<html><body>test</body>"
+        assert!(content.to_str().unwrap().contains("html"));
+    }
+
+    #[test]
+    fn request_set_method() {
+        let request = Request::default();
+        // Should not panic - mock accepts any method
+        request.set_method(b"POST");
+    }
+
+    #[test]
+    fn request_set_uri() {
+        let request = Request::default();
+        // Should not panic - mock accepts any URI
+        request.set_uri(b"/new/path?query=value");
     }
 }

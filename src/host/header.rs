@@ -80,37 +80,85 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_all() {
-        let h = Header::kind(0);
-        let sut = h.get_all(b"x-bar");
-        assert!(sut.contains(&Bytes::from("test2")));
-    }
-    #[test]
-    fn test_get_unknown_name() {
-        let h = Header::kind(0);
-        let sut = h.get(b"x-foo");
-        assert_eq!(sut, None);
+    fn header_get_existing() {
+        let header = Header::kind(0);
+        // The mock has "X-FOO" header with value "test1"
+        let value = header.get(b"X-FOO");
+        assert!(value.is_some());
+        assert_eq!(value.unwrap().to_str().unwrap(), "test1");
     }
 
     #[test]
-    fn test_header_names() {
-        let h = Header::kind(0);
-        let sut = h.names();
-        assert_eq!(3, sut.len());
+    fn header_get_nonexistent() {
+        let header = Header::kind(0);
+        let value = header.get(b"X-NONEXISTENT");
+        assert!(value.is_none());
     }
+
     #[test]
-    fn test_header_get_all() {
-        let h = Header::kind(0);
-        let sut = h.get_all(&Bytes::from("x-bar"));
-        assert_eq!(sut.len(), 2);
-        assert!(sut.contains(&Bytes::from("test2")));
+    fn header_get_all_single_value() {
+        let header = Header::kind(0);
+        let values = header.get_all(b"X-FOO");
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].to_str().unwrap(), "test1");
     }
+
     #[test]
-    fn test_header_values() {
-        let h = Header::kind(0);
-        let sut = h.values();
-        assert_eq!(sut.len(), 3);
-        assert_eq!(sut.get(&Bytes::from("X-FOO")), Some(&vec!(Bytes::from("test1"))));
-        assert_eq!(sut.get(&Bytes::from("x-bar")).unwrap().len(), 2);
+    fn header_get_all_multiple_values() {
+        let header = Header::kind(0);
+        // The mock has "x-bar" with values "test2" and "test3"
+        let values = header.get_all(b"x-bar");
+        assert_eq!(values.len(), 2);
+        assert!(values.iter().any(|v| v.to_str().unwrap() == "test2"));
+        assert!(values.iter().any(|v| v.to_str().unwrap() == "test3"));
+    }
+
+    #[test]
+    fn header_names() {
+        let header = Header::kind(0);
+        let names = header.names();
+        // The mock provides: X-FOO, x-bar, x-baz
+        assert_eq!(names.len(), 3);
+    }
+
+    #[test]
+    fn header_values_map() {
+        let header = Header::kind(0);
+        let values_map = header.values();
+        // Should have 3 distinct header names
+        assert_eq!(values_map.len(), 3);
+        // X-FOO should have 1 value
+        assert_eq!(values_map.get(&Bytes::from("X-FOO")).map(|v| v.len()), Some(1));
+        // x-bar should have 2 values
+        assert_eq!(values_map.get(&Bytes::from("x-bar")).map(|v| v.len()), Some(2));
+    }
+
+    #[test]
+    fn header_set() {
+        let header = Header::kind(0);
+        // Should not panic - mock accepts header modifications
+        header.set(b"X-New-Header", b"new-value");
+    }
+
+    #[test]
+    fn header_add() {
+        let header = Header::kind(0);
+        // Should not panic - mock accepts header additions
+        header.add(b"X-Additional", b"additional-value");
+    }
+
+    #[test]
+    fn header_remove() {
+        let header = Header::kind(0);
+        // Should not panic - mock accepts header removals
+        header.remove(b"X-FOO");
+    }
+
+    #[test]
+    fn header_operations_with_bytes() {
+        let header = Header::kind(0);
+        let name = Bytes::from("x-bar");
+        let values = header.get_all(&name);
+        assert!(!values.is_empty());
     }
 }

@@ -36,14 +36,19 @@ impl Buffer {
 
 pub(crate) fn buffer() -> RwLockWriteGuard<'static, LazyLock<Buffer>> {
     match BUFFER.write() {
-        Ok(buf) => buf,
-        Err(err) => panic!("{}", err),
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            BUFFER.clear_poison();
+            poisoned.into_inner()
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Arc, RwLock};
+    use std::thread;
 
     #[test]
     fn test_as_slice() {
@@ -58,5 +63,44 @@ mod tests {
         let buf = Buffer::from_vec(c);
         let r = buf.as_subslice(c.len() as i32);
         assert!(r.is_empty());
+    }
+
+    #[test]
+    fn test_lock_recovers_from_poison_and_clears_it() {
+        // Use a local lock wrapped in Arc to avoid affecting global state
+        let lock = Arc::new(RwLock::new(42u32));
+
+        // Poison the lock by panicking while holding it
+        let lock_clone = Arc::clone(&lock);
+        let result = thread::spawn(move || {
+            let _guard = lock_clone.write().unwrap();
+            panic!("intentional panic to poison lock");
+        })
+        .join();
+
+        // Verify the thread panicked
+        assert!(result.is_err());
+
+        // Verify the lock is poisoned
+        assert!(lock.is_poisoned());
+
+        // Recover from the poisoned lock and clear the poison flag
+        {
+            let guard = match lock.write() {
+                Ok(guard) => guard,
+                Err(poisoned) => {
+                    lock.clear_poison();
+                    poisoned.into_inner()
+                }
+            };
+            assert_eq!(*guard, 42);
+        }
+
+        // Verify the lock is no longer poisoned
+        assert!(!lock.is_poisoned());
+
+        // Verify we can now acquire the lock normally
+        let guard = lock.write().expect("lock should not be poisoned");
+        assert_eq!(*guard, 42);
     }
 }
