@@ -37,6 +37,10 @@ unsafe extern "C" {
 // Test FFI - Mock implementations
 // =============================================================================
 
+// Re-export mock functions with the same names as the extern declarations
+#[cfg(test)]
+pub(crate) use mock::*;
+
 #[cfg(test)]
 pub(crate) mod mock {
     use std::cell::Cell;
@@ -281,7 +285,3 @@ pub(crate) mod mock {
         copy_to_buf(b"192.168.1.1", buf, buf_limit)
     }
 }
-
-// Re-export mock functions with the same names as the extern declarations
-#[cfg(test)]
-pub(crate) use mock::*;

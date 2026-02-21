@@ -204,6 +204,7 @@ mod tests {
     #[test]
     fn test_eof_size_without_eof() {
         // EOF flag not set (0 in upper 32 bits), size 50 in lower 32 bits
+        #[allow(clippy::identity_op)]
         let (eof, size) = eof_size(0i64 << 32 | 50);
         assert!(!eof);
         assert_eq!(size, 50);
