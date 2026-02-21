@@ -192,4 +192,220 @@ mod tests {
         let m = method();
         assert_eq!(b"GET", m.as_ref());
     }
+
+    #[test]
+    fn test_eof_size_with_eof() {
+        // EOF flag set (1 in upper 32 bits), size 100 in lower 32 bits
+        let (eof, size) = eof_size(1i64 << 32 | 100);
+        assert!(eof);
+        assert_eq!(size, 100);
+    }
+
+    #[test]
+    fn test_eof_size_without_eof() {
+        // EOF flag not set (0 in upper 32 bits), size 50 in lower 32 bits
+        #[allow(clippy::identity_op)]
+        let (eof, size) = eof_size(0i64 << 32 | 50);
+        assert!(!eof);
+        assert_eq!(size, 50);
+    }
+
+    #[test]
+    fn test_split_u8_nul_single() {
+        let data = b"hello\0";
+        let result = split_u8_nul(data);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], b"hello");
+    }
+
+    #[test]
+    fn test_split_u8_nul_multiple() {
+        let data = b"foo\0bar\0baz\0";
+        let result = split_u8_nul(data);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], b"foo");
+        assert_eq!(result[1], b"bar");
+        assert_eq!(result[2], b"baz");
+    }
+
+    #[test]
+    fn test_split_u8_nul_empty() {
+        let data = b"";
+        let result = split_u8_nul(data);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_split_function() {
+        let data = b"one\0two\0three\0";
+        let result = split(data, 3, data.len() as i32);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].as_ref(), b"one");
+        assert_eq!(result[1].as_ref(), b"two");
+        assert_eq!(result[2].as_ref(), b"three");
+    }
+
+    #[test]
+    fn test_body_read() {
+        // Test reading body - mock returns HTML content with EOF
+        let content = body(0);
+        assert!(!content.is_empty());
+        assert!(content.starts_with(b"<html>"));
+    }
+
+    #[test]
+    fn test_write_body() {
+        // Should not panic - mock accepts any body
+        write_body(0, b"test body content");
+    }
+
+    #[test]
+    fn test_version() {
+        let v = version();
+        assert_eq!(v.as_ref(), b"HTTP/2.0");
+    }
+
+    #[test]
+    fn test_uri() {
+        let u = uri();
+        assert_eq!(u.as_ref(), b"https://test");
+    }
+
+    #[test]
+    fn test_source_addr() {
+        let addr = source_addr();
+        assert_eq!(addr.as_ref(), b"192.168.1.1");
+    }
+
+    #[test]
+    fn test_set_method() {
+        // Should not panic - mock accepts any method
+        set_method(b"POST");
+    }
+
+    #[test]
+    fn test_set_uri() {
+        // Should not panic - mock accepts any URI
+        set_uri(b"/new/path");
+    }
+
+    #[test]
+    fn test_set_status_code() {
+        // Should not panic - mock accepts any status code
+        set_status_code(404);
+    }
+
+    #[test]
+    fn test_get_config() {
+        let config = get_config();
+        let config_str = std::str::from_utf8(&config).unwrap();
+        assert!(config_str.contains("config"));
+    }
+
+    #[test]
+    fn test_enable_feature() {
+        // Should return 0 (success) from mock
+        let result = enable_feature(1);
+        assert_eq!(result, 0);
+    }
+
+    #[test]
+    fn test_log() {
+        // Should not panic - mock accepts log calls
+        log(2, b"test message");
+    }
+
+    #[test]
+    fn test_log_enabled() {
+        // Mock enables levels 0-3
+        assert!(log_enabled(0));
+        assert!(log_enabled(2));
+        assert!(!log_enabled(-1));
+    }
+
+    #[test]
+    fn test_header_names() {
+        let names = header_names(0);
+        assert_eq!(names.len(), 3);
+    }
+
+    #[test]
+    fn test_header_values_existing() {
+        let values = header_values(0, b"X-FOO");
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].as_ref(), b"test1");
+    }
+
+    #[test]
+    fn test_header_values_multiple() {
+        let values = header_values(0, b"x-bar");
+        assert_eq!(values.len(), 2);
+    }
+
+    #[test]
+    fn test_header_values_nonexistent() {
+        let values = header_values(0, b"X-UNKNOWN");
+        assert!(values.is_empty());
+    }
+
+    #[test]
+    fn test_remove_header() {
+        // Should not panic - mock accepts header removal
+        remove_header(0, b"X-FOO");
+    }
+
+    #[test]
+    fn test_set_header() {
+        // Should not panic - mock accepts header set
+        set_header(0, b"X-New", b"value");
+    }
+
+    #[test]
+    fn test_add_header_value() {
+        // Should not panic - mock accepts header add
+        add_header_value(0, b"X-Existing", b"new-value");
+    }
+
+    // =========================================================================
+    // Buffer Overflow Tests
+    // =========================================================================
+
+    #[test]
+    fn test_header_names_overflow() {
+        // kind=99 triggers overflow simulation in mock
+        // First call returns size > buffer (2048), second call provides data
+        let names = header_names(99);
+        // Should have 200 headers from the overflow mock
+        assert_eq!(names.len(), 200);
+        // Verify first header name format
+        assert!(names[0].starts_with(b"X-Header-Name-Overflow-"));
+    }
+
+    #[test]
+    fn test_header_values_overflow() {
+        // kind=99 with X-OVERFLOW triggers overflow simulation
+        // Data exceeds 2048 byte buffer
+        let values = header_values(99, b"X-OVERFLOW");
+        // Should have 150 values from the overflow mock
+        assert_eq!(values.len(), 150);
+        // Verify value format
+        assert!(values[0].starts_with(b"overflow-header-value-"));
+    }
+
+    #[test]
+    fn test_get_config_overflow() {
+        // Enable overflow mode for this test
+        ffi::mock::set_config_overflow_mode(true);
+
+        // This should trigger the overflow branch in get_config
+        let config = get_config();
+
+        // Verify we got the large config data
+        assert!(config.len() > 2048);
+        let config_str = std::str::from_utf8(&config).unwrap();
+        assert!(config_str.contains("overflow_test"));
+
+        // Reset overflow mode
+        ffi::mock::set_config_overflow_mode(false);
+    }
 }

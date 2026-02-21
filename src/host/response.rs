@@ -44,4 +44,43 @@ mod tests {
         assert!(!sut.is_empty());
         assert!(sut.starts_with(b"<html>"));
     }
+
+    #[test]
+    fn response_status() {
+        let response = Response::default();
+        // The mock returns 200
+        assert_eq!(response.status(), 200);
+    }
+
+    #[test]
+    fn response_set_status() {
+        let response = Response::default();
+        // Should not panic - mock accepts any status
+        response.set_status(404);
+    }
+
+    #[test]
+    fn response_header_access() {
+        let response = Response::default();
+        let header = response.header();
+        // Response headers use kind=1, should still work
+        let _ = header.names();
+    }
+
+    #[test]
+    fn response_body_read() {
+        let response = Response::default();
+        let body = response.body();
+        let content = body.read();
+        // The mock returns HTML content
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn response_body_write() {
+        let response = Response::default();
+        let body = response.body();
+        // Should not panic - mock accepts any body
+        body.write(b"<html><body>Custom Response</body></html>");
+    }
 }

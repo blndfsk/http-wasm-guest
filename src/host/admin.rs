@@ -16,7 +16,33 @@ pub fn enable(feature: feature::Feature) -> i32 {
 /// Returns the raw configuration bytes provided by the host.
 ///
 /// The host controls the configuration payload; interpret it according to your
-/// plugin’s configuration format (for example, JSON or protobuf).
+/// plugin's configuration format (for example, JSON or protobuf).
 pub fn config() -> Bytes {
     Bytes::from(handler::get_config())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn admin_config() {
+        let config = config();
+        // The mock returns JSON-like config
+        let config_str = config.to_str().unwrap();
+        assert!(config_str.contains("config"));
+        assert!(config_str.contains("test1"));
+    }
+
+    #[test]
+    fn admin_enable_feature() {
+        // Should not panic - mock handles feature enablement
+        let _result = enable(feature::BufferRequest);
+    }
+
+    #[test]
+    fn admin_enable_combined_features() {
+        let combined = feature::BufferRequest | feature::BufferResponse;
+        let _result = enable(combined);
+    }
 }

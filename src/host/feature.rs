@@ -59,7 +59,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_feature_or() {
-        assert_eq!(BufferRequest | BufferResponse, Feature(3));
+    fn feature_buffer_request() {
+        assert_eq!(BufferRequest.0, 1);
+    }
+
+    #[test]
+    fn feature_buffer_response() {
+        assert_eq!(BufferResponse.0, 2);
+    }
+
+    #[test]
+    fn feature_trailers() {
+        assert_eq!(Trailers.0, 4);
+    }
+
+    #[test]
+    fn feature_combine_with_bitor() {
+        let combined = BufferRequest | BufferResponse;
+        assert_eq!(combined, Feature(3));
+    }
+
+    #[test]
+    fn feature_combine_all() {
+        let combined = BufferRequest | BufferResponse | Trailers;
+        assert_eq!(combined, Feature(7));
     }
 }

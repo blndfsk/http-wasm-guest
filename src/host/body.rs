@@ -29,3 +29,57 @@ impl Body {
         handler::write_body(self.0, body);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn body_kind_request() {
+        let body = Body::kind(0);
+        assert_eq!(body.0, 0);
+    }
+
+    #[test]
+    fn body_kind_response() {
+        let body = Body::kind(1);
+        assert_eq!(body.0, 1);
+    }
+
+    #[test]
+    fn body_read_request() {
+        let body = Body::kind(0);
+        let content = body.read();
+        // Mock returns HTML content
+        assert!(!content.is_empty());
+        assert!(content.to_str().unwrap().contains("html"));
+    }
+
+    #[test]
+    fn body_read_response() {
+        let body = Body::kind(1);
+        let content = body.read();
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn body_write_request() {
+        let body = Body::kind(0);
+        // Should not panic - mock accepts any body
+        body.write(b"new request body");
+    }
+
+    #[test]
+    fn body_write_response() {
+        let body = Body::kind(1);
+        // Should not panic - mock accepts any body
+        body.write(b"<html><body>Custom Response</body></html>");
+    }
+
+    #[test]
+    fn body_write_empty() {
+        let body = Body::kind(0);
+        // Should not panic - mock accepts empty body
+        body.write(b"");
+    }
+}
