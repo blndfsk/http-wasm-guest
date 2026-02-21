@@ -219,7 +219,7 @@ pub(crate) mod mock {
         } else if kind == 99 && name_slice == b"X-OVERFLOW" {
             // Generate data larger than 2048 byte buffer to trigger overflow
             let data_len = 2700;
-            
+
             if buf_limit < data_len {
                 // First call - report overflow with actual data size
                 (100i64 << 32) | (data_len as i64)
