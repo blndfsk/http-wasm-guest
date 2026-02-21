@@ -2,6 +2,7 @@
 
 [![crate](https://img.shields.io/crates/v/http-wasm-guest.svg)](https://crates.io/crates/http-wasm-guest)
 [![Test](https://github.com/blndfsk/http-wasm-guest/actions/workflows/test.yml/badge.svg)](https://github.com/blndfsk/http-wasm-guest/actions/workflows/test.yml)
+[![codecov](https://codecov.io/github/blndfsk/http-wasm-guest/graph/badge.svg?token=7C6C2M6E99)](https://codecov.io/github/blndfsk/http-wasm-guest)
 
 This library provides a Rust implementation for the [Wasm Guest ABI](https://http-wasm.io/http-handler-abi/) and interfaces with
 [http-wasm](https://github.com/http-wasm).

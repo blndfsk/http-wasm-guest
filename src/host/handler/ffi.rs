@@ -176,20 +176,20 @@ pub(crate) mod mock {
             (3i64 << 32) | (len as i64)
         // kind=99 triggers overflow test
         } else if kind == 99 {
-            // Generate data larger than 2048 byte buffer to trigger overflow
-            let mut data = Vec::new();
-            for i in 0..200 {
-                data.extend_from_slice(format!("X-Header-Name-Overflow-{:03}\0", i).as_bytes());
-            }
-            let data_len = data.len() as i32;
+            let data_len = 2700;
 
             if buf_limit < data_len {
                 // First call - report overflow with actual data size
-                (200i64 << 32) | (data_len as i64)
+                (100i64 << 32) | (data_len as i64)
             } else {
                 // Second call - provide the data
+                // Generate data larger than 2048 byte buffer to trigger overflow
+                let mut data = Vec::new();
+                for i in 0..100 {
+                    data.extend_from_slice(format!("X-Header-Name-Overflow-{:03}\0", i).as_bytes());
+                }
                 let len = copy_to_buf(&data, buf, buf_limit);
-                (200i64 << 32) | (len as i64)
+                (100i64 << 32) | (len as i64)
             }
         } else {
             let data = b"X-FOO\0x-bar\0x-baz\0";
@@ -218,19 +218,19 @@ pub(crate) mod mock {
         // kind=99 with X-OVERFLOW triggers overflow test
         } else if kind == 99 && name_slice == b"X-OVERFLOW" {
             // Generate data larger than 2048 byte buffer to trigger overflow
-            let mut data = Vec::new();
-            for i in 0..150 {
-                data.extend_from_slice(format!("overflow-header-value-{:04}\0", i).as_bytes());
-            }
-            let data_len = data.len() as i32;
-
+            let data_len = 2700;
+            
             if buf_limit < data_len {
                 // First call - report overflow with actual data size
-                (150i64 << 32) | (data_len as i64)
+                (100i64 << 32) | (data_len as i64)
             } else {
                 // Second call - provide the data
+                let mut data = Vec::new();
+                for i in 0..100 {
+                    data.extend_from_slice(format!("overflow-header-value-{:04}\0", i).as_bytes());
+                }
                 let len = copy_to_buf(&data, buf, buf_limit);
-                (150i64 << 32) | (len as i64)
+                (100i64 << 32) | (len as i64)
             }
         } else {
             match name_slice {
