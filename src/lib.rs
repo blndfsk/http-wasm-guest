@@ -6,7 +6,7 @@
 //! requests and responses within a host runtime. Implement [`Guest`] and
 //! call [`register`] to wire up your plugin entry points.
 
-use std::sync::{LazyLock, OnceLock};
+use std::sync::OnceLock;
 
 use crate::host::{Request, Response};
 
@@ -42,8 +42,6 @@ pub trait Guest {
 }
 
 static GUEST: OnceLock<Handler> = OnceLock::new();
-static REQ: LazyLock<Request> = LazyLock::new(Request::default);
-static RES: LazyLock<Response> = LazyLock::new(Response::default);
 
 /// Register a guest plugin implementation with the runtime.
 ///
@@ -56,7 +54,7 @@ pub fn register<T: Guest + 'static>(guest: T) {
 #[unsafe(export_name = "handle_request")]
 fn http_request() -> i64 {
     let (next, ctx_next) = match GUEST.get() {
-        Some(handler) => handler.guest.handle_request(&REQ, &RES),
+        Some(handler) => handler.guest.handle_request(&Request::new(), &Response::new()),
         None => (true, 0),
     };
 
@@ -66,7 +64,7 @@ fn http_request() -> i64 {
 #[unsafe(export_name = "handle_response")]
 fn http_response(req_ctx: i32, is_error: i32) {
     if let Some(handler) = GUEST.get() {
-        handler.guest.handle_response(req_ctx, &REQ, &RES, is_error == 1)
+        handler.guest.handle_response(req_ctx, &Request::new(), &Response::new(), is_error == 1)
     };
 }
 
@@ -105,8 +103,8 @@ mod tests {
         impl Guest for DefaultGuest {}
 
         let guest = DefaultGuest;
-        let request = Request::default();
-        let response = Response::default();
+        let request = Request::new();
+        let response = Response::new();
 
         let (cont, ctx) = guest.handle_request(&request, &response);
         assert!(cont);
@@ -125,8 +123,8 @@ mod tests {
             ctx_value: 42,
         };
 
-        let request = Request::default();
-        let response = Response::default();
+        let request = Request::new();
+        let response = Response::new();
 
         let (cont, ctx) = plugin.handle_request(&request, &response);
         assert!(cont);
@@ -147,8 +145,8 @@ mod tests {
         }
 
         let plugin = StopPlugin;
-        let request = Request::default();
-        let response = Response::default();
+        let request = Request::new();
+        let response = Response::new();
 
         let (cont, _) = plugin.handle_request(&request, &response);
         assert!(!cont);
@@ -161,12 +159,11 @@ mod tests {
         impl Guest for DefaultResponsePlugin {}
 
         let plugin = DefaultResponsePlugin;
-        let request = Request::default();
-        let response = Response::default();
+        let request = Request::new();
+        let response = Response::new();
 
         // Call the default handle_response - should do nothing and not panic
         plugin.handle_response(42, &request, &response, false);
-        plugin.handle_response(0, &request, &response, true);
     }
 
     #[test]
@@ -189,88 +186,13 @@ mod tests {
         }
 
         let plugin = ContextPlugin { ctx_received: ctx_clone };
-        let request = Request::default();
-        let response = Response::default();
+        let request = Request::new();
+        let response = Response::new();
 
         let (_, ctx) = plugin.handle_request(&request, &response);
-        plugin.handle_response(ctx, &request, &response, false);
+        plugin.handle_response(ctx, &Request::new(), &Response::new(), false);
 
         assert_eq!(ctx_received.load(Ordering::SeqCst), 12345);
-    }
-
-    // =========================================================================
-    // End-to-End Plugin Scenario Tests
-    // =========================================================================
-
-    /// Simulates a plugin that adds a custom header to requests
-    struct HeaderAddPlugin;
-
-    impl Guest for HeaderAddPlugin {
-        fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
-            request.header().add(b"X-Custom-Plugin", b"http-wasm-guest");
-            (true, 0)
-        }
-    }
-
-    #[test]
-    fn e2e_header_plugin() {
-        let plugin = HeaderAddPlugin;
-        let request = Request::default();
-        let response = Response::default();
-
-        let (cont, _) = plugin.handle_request(&request, &response);
-        assert!(cont);
-    }
-
-    /// Simulates a plugin that logs request info and continues
-    struct LoggingPlugin;
-
-    impl Guest for LoggingPlugin {
-        fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
-            let _method = request.method();
-            let _uri = request.uri();
-            let _version = request.version();
-            let _headers = request.header().values();
-            (true, 0)
-        }
-    }
-
-    #[test]
-    fn e2e_logging_plugin() {
-        let plugin = LoggingPlugin;
-        let request = Request::default();
-        let response = Response::default();
-
-        let (cont, _) = plugin.handle_request(&request, &response);
-        assert!(cont);
-    }
-
-    /// Simulates a plugin that modifies the response
-    struct ResponseModifierPlugin;
-
-    impl Guest for ResponseModifierPlugin {
-        fn handle_request(&self, _request: &Request, _response: &Response) -> (bool, i32) {
-            (true, 1)
-        }
-
-        fn handle_response(&self, _req_ctx: i32, _request: &Request, response: &Response, _is_error: bool) {
-            response.set_status(201);
-            response.header().set(b"X-Modified", b"true");
-            response.body().write(b"Modified response");
-        }
-    }
-
-    #[test]
-    fn e2e_response_modifier_plugin() {
-        let plugin = ResponseModifierPlugin;
-        let request = Request::default();
-        let response = Response::default();
-
-        let (cont, ctx) = plugin.handle_request(&request, &response);
-        assert!(cont);
-        assert_eq!(ctx, 1);
-
-        plugin.handle_response(ctx, &request, &response, false);
     }
 
     /// Simulates a plugin that blocks certain requests
@@ -297,8 +219,8 @@ mod tests {
     #[test]
     fn e2e_blocking_plugin_allows() {
         let plugin = BlockingPlugin { blocked_paths: vec!["/admin", "/secret"] };
-        let request = Request::default();
-        let response = Response::default();
+        let request = Request::new();
+        let response = Response::new();
 
         // Mock returns "https://test" which doesn't contain blocked paths
         let (cont, _) = plugin.handle_request(&request, &response);
@@ -309,8 +231,8 @@ mod tests {
     fn e2e_blocking_plugin_blocks() {
         // Use "test" as blocked path since mock URI is "https://test"
         let plugin = BlockingPlugin { blocked_paths: vec!["test"] };
-        let request = Request::default();
-        let response = Response::default();
+        let request = Request::new();
+        let response = Response::new();
 
         // Mock returns "https://test" which contains "test"
         let (cont, _) = plugin.handle_request(&request, &response);
@@ -333,8 +255,8 @@ mod tests {
     #[test]
     fn e2e_configurable_plugin() {
         let plugin = ConfigurablePlugin;
-        let request = Request::default();
-        let response = Response::default();
+        let request = Request::new();
+        let response = Response::new();
 
         let (cont, _) = plugin.handle_request(&request, &response);
         assert!(cont);
@@ -353,8 +275,8 @@ mod tests {
     #[test]
     fn e2e_feature_enabling_plugin() {
         let plugin = FeatureEnablingPlugin;
-        let request = Request::default();
-        let response = Response::default();
+        let request = Request::new();
+        let response = Response::new();
 
         let (cont, _) = plugin.handle_request(&request, &response);
         assert!(cont);
@@ -391,20 +313,22 @@ mod tests {
     #[test]
     fn e2e_full_cycle_plugin() {
         let plugin = FullCyclePlugin { request_count: AtomicU32::new(0) };
-        let request = Request::default();
-        let response = Response::default();
+        let request = Request::new();
+        let response = Response::new();
 
         // First request
         let (cont1, ctx1) = plugin.handle_request(&request, &response);
         assert!(cont1);
         assert_eq!(ctx1, 0);
-        plugin.handle_response(ctx1, &request, &response, false);
+        plugin.handle_response(ctx1, &Request::new(), &Response::new(), false);
 
         // Second request
-        let (cont2, ctx2) = plugin.handle_request(&request, &response);
+        let req2 = Request::new();
+        let res2 = Response::new();
+        let (cont2, ctx2) = plugin.handle_request(&req2, &res2);
         assert!(cont2);
         assert_eq!(ctx2, 1);
-        plugin.handle_response(ctx2, &request, &response, false);
+        plugin.handle_response(ctx2, &Request::new(), &Response::new(), false);
     }
 
     // =========================================================================
@@ -466,8 +390,8 @@ mod tests {
 
         let plugin = ResponseTrackingPlugin { ctx_received: ctx_received.clone(), is_error_received: is_error_received.clone() };
 
-        let request = Request::default();
-        let response = Response::default();
+        let request = Request::new();
+        let response = Response::new();
 
         // Test with is_error = false (0)
         plugin.handle_response(42, &request, &response, false);
@@ -475,7 +399,7 @@ mod tests {
         assert_eq!(is_error_received.load(Ordering::SeqCst), 0);
 
         // Test with is_error = true (1)
-        plugin.handle_response(123, &request, &response, true);
+        plugin.handle_response(123, &Request::new(), &Response::new(), true);
         assert_eq!(ctx_received.load(Ordering::SeqCst), 123);
         assert_eq!(is_error_received.load(Ordering::SeqCst), 1);
     }

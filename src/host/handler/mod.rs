@@ -9,10 +9,10 @@ pub(crate) fn log_enabled(level: i32) -> bool {
     matches!(unsafe { ffi::log_enabled(level) }, 1)
 }
 
-pub(crate) fn get_config() -> Vec<u8> {
+pub(crate) fn get_config() -> Box<[u8]> {
     let mut buffer = memory::buffer();
     match unsafe { ffi::get_config(buffer.as_mut_ptr(), buffer.len()) } {
-        size if size <= buffer.len() => buffer.as_subslice(size).to_vec(),
+        size if size <= buffer.len() => buffer.as_subslice(size).to_vec().into_boxed_slice(),
         capacity => {
             let mut buf = Vec::with_capacity(capacity as usize);
             let vec = unsafe {
@@ -21,7 +21,7 @@ pub(crate) fn get_config() -> Vec<u8> {
                 Vec::from_raw_parts(ptr, length as usize, capacity as usize)
             };
             std::mem::forget(buf);
-            vec
+            vec.into_boxed_slice()
         }
     }
 }
@@ -39,12 +39,12 @@ pub(crate) fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
     }
 
     let mut buf = Vec::with_capacity(len as usize);
+    let ptr = buf.as_mut_ptr();
     unsafe {
-        let ptr = buf.as_mut_ptr();
-        let count_len2 = ffi::get_header_values(kind, name.as_ptr(), name.len() as i32, ptr, len);
-        let (_, actual_len) = split_i64(count_len2);
-        let new_buf = std::slice::from_raw_parts(ptr, actual_len as usize);
-        split(new_buf, count, actual_len)
+        let count_len = ffi::get_header_values(kind, name.as_ptr(), name.len() as i32, ptr, len);
+        let (count, len) = split_i64(count_len);
+        buf.set_len(len as usize);
+        split(buf.as_slice(), count, len)
     }
 }
 
@@ -55,13 +55,14 @@ pub(crate) fn header_names(kind: i32) -> Vec<Box<[u8]>> {
     if len <= buffer.len() {
         return split(buffer.as_slice(), count, len);
     }
+
     let mut buf = Vec::with_capacity(len as usize);
+    let ptr = buf.as_mut_ptr();
     unsafe {
-        let ptr = buf.as_mut_ptr();
-        let count_len2 = ffi::get_header_names(kind, ptr, len);
-        let (_, actual_len) = split_i64(count_len2);
-        let new_buf = std::slice::from_raw_parts(ptr, actual_len as usize);
-        split(new_buf, count, actual_len)
+        let count_len = ffi::get_header_names(kind, ptr, len);
+        let (count, len) = split_i64(count_len);
+        buf.set_len(len as usize);
+        split(buf.as_slice(), count, len)
     }
 }
 

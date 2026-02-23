@@ -8,11 +8,15 @@ static KIND_REQ: i32 = 0;
 
 impl Default for Request {
     fn default() -> Self {
-        Self { header: Header::kind(KIND_REQ), body: Body::kind(KIND_REQ) }
+        Self::new()
     }
 }
-
 impl Request {
+    /// Creates a new `Request` instance with header and body handles.
+    pub fn new() -> Self {
+        Self { header: Header::kind(KIND_REQ), body: Body::kind(KIND_REQ) }
+    }
+
     /// Return the client source address (ip:port) as raw bytes.
     ///
     /// ## Example ##
@@ -68,7 +72,7 @@ mod tests {
 
     #[test]
     fn request_method() {
-        let request = Request::default();
+        let request = Request::new();
         let method = request.method();
         // The mock returns "GET"
         assert_eq!(method.to_str().unwrap(), "GET");
@@ -76,7 +80,7 @@ mod tests {
 
     #[test]
     fn request_version() {
-        let request = Request::default();
+        let request = Request::new();
         let version = request.version();
         // The mock returns "HTTP/2.0"
         assert!(!version.is_empty());
@@ -85,7 +89,7 @@ mod tests {
 
     #[test]
     fn request_uri() {
-        let request = Request::default();
+        let request = Request::new();
         let uri = request.uri();
         // The mock returns "https://test"
         assert!(uri.to_str().unwrap().contains("test"));
@@ -93,7 +97,7 @@ mod tests {
 
     #[test]
     fn request_source_addr() {
-        let request = Request::default();
+        let request = Request::new();
         let addr = request.source_addr();
         // The mock returns "192.168.1.1"
         assert_eq!(addr.to_str().unwrap(), "192.168.1.1");
@@ -101,7 +105,7 @@ mod tests {
 
     #[test]
     fn request_header_access() {
-        let request = Request::default();
+        let request = Request::new();
         let header = request.header();
         // The mock provides headers: X-FOO, x-bar, x-baz
         let names = header.names();
@@ -110,7 +114,7 @@ mod tests {
 
     #[test]
     fn request_body_access() {
-        let request = Request::default();
+        let request = Request::new();
         let body = request.body();
         let content = body.read();
         // The mock returns "<html><body>test</body>"
@@ -119,14 +123,14 @@ mod tests {
 
     #[test]
     fn request_set_method() {
-        let request = Request::default();
+        let request = Request::new();
         // Should not panic - mock accepts any method
         request.set_method(b"POST");
     }
 
     #[test]
     fn request_set_uri() {
-        let request = Request::default();
+        let request = Request::new();
         // Should not panic - mock accepts any URI
         request.set_uri(b"/new/path?query=value");
     }

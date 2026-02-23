@@ -8,10 +8,15 @@ static KIND_RES: i32 = 1;
 
 impl Default for Response {
     fn default() -> Self {
-        Self { header: Header::kind(KIND_RES), body: Body::kind(KIND_RES) }
+        Self::new()
     }
 }
+
 impl Response {
+    /// Creates a new `Response` instance with header and body handles.
+    pub fn new() -> Self {
+        Self { header: Header::kind(KIND_RES), body: Body::kind(KIND_RES) }
+    }
     /// Return the current response status code.
     pub fn status(&self) -> i32 {
         handler::status_code()
@@ -39,7 +44,7 @@ mod tests {
 
     #[test]
     fn test_body() {
-        let r = Response::default();
+        let r = Response::new();
         let sut = r.body().read();
         assert!(!sut.is_empty());
         assert!(sut.starts_with(b"<html>"));
@@ -47,21 +52,21 @@ mod tests {
 
     #[test]
     fn response_status() {
-        let response = Response::default();
+        let response = Response::new();
         // The mock returns 200
         assert_eq!(response.status(), 200);
     }
 
     #[test]
     fn response_set_status() {
-        let response = Response::default();
+        let response = Response::new();
         // Should not panic - mock accepts any status
         response.set_status(404);
     }
 
     #[test]
     fn response_header_access() {
-        let response = Response::default();
+        let response = Response::new();
         let header = response.header();
         // Response headers use kind=1, should still work
         let _ = header.names();
@@ -69,7 +74,7 @@ mod tests {
 
     #[test]
     fn response_body_read() {
-        let response = Response::default();
+        let response = Response::new();
         let body = response.body();
         let content = body.read();
         // The mock returns HTML content
@@ -78,7 +83,7 @@ mod tests {
 
     #[test]
     fn response_body_write() {
-        let response = Response::default();
+        let response = Response::new();
         let body = response.body();
         // Should not panic - mock accepts any body
         body.write(b"<html><body>Custom Response</body></html>");

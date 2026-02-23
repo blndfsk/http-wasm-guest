@@ -21,7 +21,7 @@ impl Header {
     ///
     /// Header names are returned in the order provided by the host runtime.
     pub fn names(&self) -> Vec<Bytes> {
-        handler::header_names(self.0).iter().map(|h| Bytes::from(h.clone())).collect()
+        handler::header_names(self.0).into_iter().map(Bytes::from).collect()
     }
 
     /// Return the first value for the given header name, if present.
@@ -29,7 +29,7 @@ impl Header {
     /// The `name` is matched by the host according to its header normalization
     /// rules (often case-insensitive).
     pub fn get(&self, name: &[u8]) -> Option<Bytes> {
-        handler::header_values(self.0, name).first().map(|h| Bytes::from(h.clone()))
+        handler::header_values(self.0, name).into_iter().next().map(Bytes::from)
     }
 
     /// Return all values for the given header name.
@@ -37,7 +37,7 @@ impl Header {
     /// The `name` is matched by the host according to its header normalization
     /// rules (often case-insensitive).
     pub fn get_all(&self, name: &[u8]) -> Vec<Bytes> {
-        handler::header_values(self.0, name).iter().map(|h| Bytes::from(h.clone())).collect()
+        handler::header_values(self.0, name).into_iter().map(Bytes::from).collect()
     }
 
     /// Set a header value, replacing any existing values.

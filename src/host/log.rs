@@ -51,8 +51,14 @@ pub fn init_with_level(level: Level) -> Result<(), SetLoggerError> {
 /// Determine the max_log_level as configured by the host
 /// If the log-level is more restrictive on the host as the plugin tries to configure,
 /// the level is decremented until an enabled level is found.
-fn max_level(level: LevelFilter) -> LevelFilter {
-    if handler::log_enabled(level.to_level().map_or_else(|| 3, map_to_host)) { level } else { level.decrement_severity() }
+fn max_level(mut level: LevelFilter) -> LevelFilter {
+    loop {
+        if handler::log_enabled(level.to_level().map_or_else(|| 3, map_to_host)) {
+            return level;
+        } else {
+            level = level.decrement_severity();
+        }
+    }
 }
 /// Initialize the host-backed logger with the default Info level.
 ///
@@ -152,11 +158,11 @@ mod tests {
     #[test]
     fn log_enabled_check() {
         // The mock enables levels 0-3 (Error, Warn, Info, Debug)
-        assert!(handler::log_enabled(0)); // Error
+        assert!(handler::log_enabled(0)); // Info
         assert!(handler::log_enabled(1)); // Warn
-        assert!(handler::log_enabled(2)); // Info
-        assert!(handler::log_enabled(3)); // Debug
-        assert!(!handler::log_enabled(-1)); // Trace (disabled)
+        assert!(handler::log_enabled(2)); // Error
+        assert!(handler::log_enabled(3)); // OFF
+        assert!(!handler::log_enabled(-1)); // Debug (disabled)
         assert!(!handler::log_enabled(4)); // Unknown (disabled)
     }
 
@@ -213,5 +219,16 @@ mod tests {
 
         // This should return early without calling handler::log
         LOGGER.log(&record);
+    }
+
+    #[test]
+    fn test_max_level_decrement_until_enabled() {
+        // Start at Trace
+        let level = LevelFilter::Trace;
+
+        // Call max_level, which should decrement to Info
+        let result = max_level(level);
+
+        assert_eq!(result, LevelFilter::Info, "max_level should decrement to Warn when only Warn is enabled on host");
     }
 }
