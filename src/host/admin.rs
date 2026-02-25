@@ -10,7 +10,7 @@ use crate::host::{Bytes, feature, handler};
 /// to enable multiple capabilities in a single call. The return value is the
 /// host-provided status code.
 pub fn enable(feature: feature::Feature) -> i32 {
-    handler::enable_feature(feature.0)
+    handler::enable_feature(feature.into())
 }
 
 /// Returns the raw configuration bytes provided by the host.

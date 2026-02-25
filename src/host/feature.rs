@@ -46,7 +46,14 @@ pub const Trailers: Feature = Feature(4);
 /// Bitflag wrapper used to configure host capabilities.
 ///
 /// Combine flags with `|` and pass the result to `admin::enable`.
-pub struct Feature(pub i32);
+pub struct Feature(i32);
+
+impl From<Feature> for i32 {
+    fn from(val: Feature) -> Self {
+        val.0
+    }
+}
+
 impl BitOr for Feature {
     type Output = Feature;
 
@@ -83,5 +90,25 @@ mod tests {
     fn feature_combine_all() {
         let combined = BufferRequest | BufferResponse | Trailers;
         assert_eq!(combined, Feature(7));
+    }
+
+    #[test]
+    fn feature_debug_output() {
+        let f = Feature(42);
+        let debug_str = format!("{:?}", f);
+        assert!(debug_str.contains("42"));
+    }
+
+    #[test]
+    fn feature_partial_eq() {
+        assert_eq!(Feature(5), Feature(5));
+        assert_ne!(Feature(1), Feature(2));
+    }
+
+    #[test]
+    fn feature_into_i32() {
+        let f = Feature(123);
+        let val: i32 = f.into();
+        assert_eq!(val, 123);
     }
 }

@@ -48,11 +48,11 @@ pub(crate) mod mock {
 
     // Thread-local flag to enable config overflow testing
     thread_local! {
-        pub static CONFIG_OVERFLOW_MODE: Cell<bool> = const { Cell::new(false) };
+        pub(super) static CONFIG_OVERFLOW_MODE: Cell<bool> = const { Cell::new(false) };
     }
 
     /// Enable config overflow mode for testing
-    pub fn set_config_overflow_mode(enabled: bool) {
+    pub(crate) fn set_config_overflow_mode(enabled: bool) {
         CONFIG_OVERFLOW_MODE.with(|f| f.set(enabled));
     }
 
@@ -80,11 +80,11 @@ pub(crate) mod mock {
     // Logging
     // -------------------------------------------------------------------------
 
-    pub unsafe fn log(_level: i32, _buf: *const u8, _len: i32) {
+    pub(crate) unsafe fn log(_level: i32, _buf: *const u8, _len: i32) {
         // No-op: discard log messages in tests
     }
 
-    pub unsafe fn log_enabled(level: i32) -> i32 {
+    pub(crate) unsafe fn log_enabled(level: i32) -> i32 {
         // Enable Error(0), Warn(1), Info(2), Debug(3); disable Trace and others
         if (0..=3).contains(&level) { 1 } else { 0 }
     }
@@ -95,7 +95,7 @@ pub(crate) mod mock {
 
     /// Returns config data.
     /// When CONFIG_OVERFLOW_MODE is enabled, simulates buffer overflow.
-    pub unsafe fn get_config(buf: *const u8, buf_limit: i32) -> i32 {
+    pub(crate) unsafe fn get_config(buf: *const u8, buf_limit: i32) -> i32 {
         let overflow_mode = CONFIG_OVERFLOW_MODE.with(|f| f.get());
 
         if overflow_mode {
@@ -119,11 +119,11 @@ pub(crate) mod mock {
     // Request Method
     // -------------------------------------------------------------------------
 
-    pub unsafe fn get_method(buf: *const u8, buf_limit: i32) -> i32 {
+    pub(crate) unsafe fn get_method(buf: *const u8, buf_limit: i32) -> i32 {
         copy_to_buf(b"GET", buf, buf_limit)
     }
 
-    pub unsafe fn set_method(_method: *const u8, _len: i32) {
+    pub(crate) unsafe fn set_method(_method: *const u8, _len: i32) {
         // No-op in tests
     }
 
@@ -131,11 +131,11 @@ pub(crate) mod mock {
     // Request URI
     // -------------------------------------------------------------------------
 
-    pub unsafe fn get_uri(buf: *const u8, buf_limit: i32) -> i32 {
+    pub(crate) unsafe fn get_uri(buf: *const u8, buf_limit: i32) -> i32 {
         copy_to_buf(b"https://test", buf, buf_limit)
     }
 
-    pub unsafe fn set_uri(_uri: *const u8, _len: i32) {
+    pub(crate) unsafe fn set_uri(_uri: *const u8, _len: i32) {
         // No-op in tests
     }
 
@@ -143,7 +143,7 @@ pub(crate) mod mock {
     // Protocol Version
     // -------------------------------------------------------------------------
 
-    pub unsafe fn get_protocol_version(buf: *const u8, buf_limit: i32) -> i32 {
+    pub(crate) unsafe fn get_protocol_version(buf: *const u8, buf_limit: i32) -> i32 {
         copy_to_buf(b"HTTP/2.0", buf, buf_limit)
     }
 
@@ -151,15 +151,15 @@ pub(crate) mod mock {
     // Headers
     // -------------------------------------------------------------------------
 
-    pub unsafe fn add_header_value(_kind: i32, _name: *const u8, _name_len: i32, _value: *const u8, _value_len: i32) {
+    pub(crate) unsafe fn add_header_value(_kind: i32, _name: *const u8, _name_len: i32, _value: *const u8, _value_len: i32) {
         // No-op in tests
     }
 
-    pub unsafe fn set_header_value(_kind: i32, _name: *const u8, _name_len: i32, _value: *const u8, _value_len: i32) {
+    pub(crate) unsafe fn set_header_value(_kind: i32, _name: *const u8, _name_len: i32, _value: *const u8, _value_len: i32) {
         // No-op in tests
     }
 
-    pub unsafe fn remove_header(_kind: i32, _name: *const u8, _len: i32) {
+    pub(crate) unsafe fn remove_header(_kind: i32, _name: *const u8, _len: i32) {
         // No-op in tests
     }
 
@@ -167,7 +167,7 @@ pub(crate) mod mock {
     /// For kind=98 (duplicate test), returns duplicate header names
     /// For kind=99 (overflow test), returns data larger than buffer
     /// Return value: count in upper 32 bits, length in lower 32 bits
-    pub unsafe fn get_header_names(kind: i32, buf: *const u8, buf_limit: i32) -> i64 {
+    pub(crate) unsafe fn get_header_names(kind: i32, buf: *const u8, buf_limit: i32) -> i64 {
         // kind=98 triggers duplicate header name test
         if kind == 98 {
             // Return duplicate header names: X-DUP appears twice
@@ -205,7 +205,7 @@ pub(crate) mod mock {
     /// - X-OVERFLOW: triggers overflow test (kind=99)
     ///
     /// Return value: count in upper 32 bits, length in lower 32 bits
-    pub unsafe fn get_header_values(kind: i32, name: *const u8, name_len: i32, buf: *const u8, buf_limit: i32) -> i64 {
+    pub(crate) unsafe fn get_header_values(kind: i32, name: *const u8, name_len: i32, buf: *const u8, buf_limit: i32) -> i64 {
         let name_slice = unsafe { std::slice::from_raw_parts(name, name_len as usize) };
 
         // kind=98 triggers duplicate header value test
@@ -248,12 +248,12 @@ pub(crate) mod mock {
 
     /// Returns mock body content with EOF flag set.
     /// Return value: EOF (1) in upper 32 bits, length in lower 32 bits
-    pub unsafe fn read_body(_kind: i32, buf: *const u8, buf_limit: i32) -> i64 {
+    pub(crate) unsafe fn read_body(_kind: i32, buf: *const u8, buf_limit: i32) -> i64 {
         let len = copy_to_buf(b"<html><body>test</body>", buf, buf_limit);
         (1i64 << 32) | (len as i64)
     }
 
-    pub unsafe fn write_body(_kind: i32, _body: *const u8, _len: i32) {
+    pub(crate) unsafe fn write_body(_kind: i32, _body: *const u8, _len: i32) {
         // No-op in tests
     }
 
@@ -261,11 +261,11 @@ pub(crate) mod mock {
     // Status Code
     // -------------------------------------------------------------------------
 
-    pub unsafe fn get_status_code() -> i32 {
+    pub(crate) unsafe fn get_status_code() -> i32 {
         200
     }
 
-    pub unsafe fn set_status_code(_code: i32) {
+    pub(crate) unsafe fn set_status_code(_code: i32) {
         // No-op in tests
     }
 
@@ -273,7 +273,7 @@ pub(crate) mod mock {
     // Features
     // -------------------------------------------------------------------------
 
-    pub unsafe fn enable_features(_feature: i32) -> i32 {
+    pub(crate) unsafe fn enable_features(_feature: i32) -> i32 {
         0 // Success
     }
 
@@ -281,7 +281,7 @@ pub(crate) mod mock {
     // Source Address
     // -------------------------------------------------------------------------
 
-    pub unsafe fn get_source_addr(buf: *const u8, buf_limit: i32) -> i32 {
+    pub(crate) unsafe fn get_source_addr(buf: *const u8, buf_limit: i32) -> i32 {
         copy_to_buf(b"192.168.1.1", buf, buf_limit)
     }
 }

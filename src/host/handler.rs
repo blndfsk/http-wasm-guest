@@ -1,3 +1,5 @@
+use std::mem::MaybeUninit;
+
 mod ffi;
 mod memory;
 
@@ -12,16 +14,14 @@ pub(crate) fn log_enabled(level: i32) -> bool {
 pub(crate) fn get_config() -> Box<[u8]> {
     let mut buffer = memory::buffer();
     match unsafe { ffi::get_config(buffer.as_mut_ptr(), buffer.len()) } {
-        size if size <= buffer.len() => buffer.as_subslice(size).to_vec().into_boxed_slice(),
+        size if size <= buffer.len() => buffer.to_boxed_slice(size),
         capacity => {
-            let mut buf = Vec::with_capacity(capacity as usize);
-            let vec = unsafe {
-                let ptr = buf.as_mut_ptr();
-                let length = ffi::get_config(ptr, capacity);
-                Vec::from_raw_parts(ptr, length as usize, capacity as usize)
-            };
-            std::mem::forget(buf);
-            vec.into_boxed_slice()
+            let mut buf: Box<[MaybeUninit<u8>]> = Box::new_uninit_slice(capacity as usize);
+            let ptr = buf.as_mut_ptr() as *mut u8;
+            unsafe {
+                let _length = ffi::get_config(ptr, capacity);
+                buf.assume_init()
+            }
         }
     }
 }
@@ -38,13 +38,12 @@ pub(crate) fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
         return split(buffer.as_slice(), count, len);
     }
 
-    let mut buf = Vec::with_capacity(len as usize);
-    let ptr = buf.as_mut_ptr();
+    let mut buf: Box<[MaybeUninit<u8>]> = Box::new_uninit_slice(len as usize);
+    let ptr = buf.as_mut_ptr() as *mut u8;
     unsafe {
         let count_len = ffi::get_header_values(kind, name.as_ptr(), name.len() as i32, ptr, len);
         let (count, len) = split_i64(count_len);
-        buf.set_len(len as usize);
-        split(buf.as_slice(), count, len)
+        split(buf.assume_init_ref(), count, len)
     }
 }
 
@@ -56,13 +55,12 @@ pub(crate) fn header_names(kind: i32) -> Vec<Box<[u8]>> {
         return split(buffer.as_slice(), count, len);
     }
 
-    let mut buf = Vec::with_capacity(len as usize);
-    let ptr = buf.as_mut_ptr();
+    let mut buf: Box<[MaybeUninit<u8>]> = Box::new_uninit_slice(len as usize);
+    let ptr = buf.as_mut_ptr() as *mut u8;
     unsafe {
         let count_len = ffi::get_header_names(kind, ptr, len);
         let (count, len) = split_i64(count_len);
-        buf.set_len(len as usize);
-        split(buf.as_slice(), count, len)
+        split(buf.assume_init_ref(), count, len)
     }
 }
 
@@ -140,7 +138,7 @@ fn split(buf: &[u8], count: i32, len: i32) -> Vec<Box<[u8]>> {
     let src = &buf[0..len as usize];
     let mut out = Vec::with_capacity(count as usize);
     for bytes in split_u8_nul(src) {
-        out.push(bytes.to_vec().into_boxed_slice());
+        out.push(Box::from(bytes));
     }
     out
 }

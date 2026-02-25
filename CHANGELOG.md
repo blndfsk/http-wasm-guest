@@ -1,3 +1,22 @@
+## v0.9.4
+
+### Bug Fixes
+- `init_with_level(level: Level)` now determines the configured level of the host correctly.
+
+### Refactoring & Improvements
+- Added `new()` constructors to `Request` and `Response`.
+- Simplified header buffer handling in `host/handler`.
+- Prevented unnecessary copying in header handling.
+- Added Miri badge to the README.
+
+### Documentation & Usability
+- Expanded the README with:
+  - A detailed "Testing" section, including prerequisites for running `run.sh` (Podman, Buildah, Rust WASM target, container images).
+  - Step-by-step instructions for running and interpreting example plugins.
+  - A troubleshooting section for common WASM build and runtime issues.
+- Clarified plugin compatibility between Traefik and Envoy (http-wasm ABI).
+- General documentation improvements for onboarding and developer experience.
+
 ## v0.9.3
 
 ### Testing

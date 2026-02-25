@@ -6,15 +6,9 @@ pub struct Response {
 }
 static KIND_RES: i32 = 1;
 
-impl Default for Response {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Response {
     /// Creates a new `Response` instance with header and body handles.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { header: Header::kind(KIND_RES), body: Body::kind(KIND_RES) }
     }
     /// Return the current response status code.
