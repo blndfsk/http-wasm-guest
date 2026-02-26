@@ -6,6 +6,17 @@ permissions:
 on:
   push:
     branches: ["main"]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+
+  pull_request:
+    branches: ["main"]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
 
 env:
   CARGO_TERM_COLOR: always
@@ -32,3 +43,6 @@ jobs:
 
       - name: Run clippy
         run: cargo clippy --all-targets --all-features
+
+      - name: Rustfmt Check
+        uses: actions-rust-lang/rustfmt@v1
