@@ -17,6 +17,12 @@ It is designed for writing Traefik plugins in Rust, and works with any http-wasm
 - Low-level `Byte` abstraction to enable all use-cases.
 - Memory-efficient data handling to suit constrained Wasm environments.
 
+## Caveat
+
+To avoid heap allocations on hot paths (logging, reading from the host), buffers are preallocated.
+For reading large payloads, an overflow path is implemented that allocates the needed buffer on the heap.
+Log messages are formatted into a fixed-size 4096-byte static buffer; messages exceeding this limit will be truncated.
+
 ## Credits
 
 - Initial reference code from [http-wasm-rust](https://github.com/elisasre/http-wasm-rust/)
@@ -52,6 +58,15 @@ fn main() {
 ```
 
 ### Test
+
+> **Note:** This crate uses mutable statics (`SyncCell`) that are safe in
+> single-threaded WASM but require tests to run sequentially. The included
+> `.cargo/config.toml` sets `RUST_TEST_THREADS=1` automatically. If you run
+> tests manually, pass `--test-threads=1`:
+>
+> ```shell
+> cargo test --lib -- --test-threads=1
+> ```
 
 #### Prerequisites
 

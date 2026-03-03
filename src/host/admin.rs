@@ -1,7 +1,7 @@
-//! Administrative utilities for configuring host features and config
+//! Administrative utilities
 //!
 //! This module provides functions to enable host capabilities, read runtime
-//! configuration
+//! configuration and provides a `HostLogger` implementation when using the `log`-feature.
 use crate::host::{Bytes, feature, handler};
 
 /// Enables one or more host features and returns the host result code.
@@ -20,6 +20,11 @@ pub fn enable(feature: feature::Feature) -> i32 {
 pub fn config() -> Bytes {
     Bytes::from(handler::get_config())
 }
+
+#[cfg(feature = "log")]
+mod host_logger;
+#[cfg(feature = "log")]
+pub use host_logger::{init_log, init_log_with_level};
 
 #[cfg(test)]
 mod tests {

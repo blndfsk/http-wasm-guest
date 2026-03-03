@@ -11,10 +11,9 @@
 //! Register the plugin and initialize logging in `main`.
 use http_wasm_guest::{
     Guest,
-    host::{self, Request, Response},
+    host::{Request, Response, admin, feature},
     register,
 };
-use log::info;
 
 /// Plugin that logs request information.
 struct Plugin;
@@ -22,16 +21,22 @@ struct Plugin;
 impl Guest for Plugin {
     /// Handles incoming requests by logging metadata and headers.
     fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
-        info!("Request: {} {} {}", request.method(), request.version(), request.uri());
+        log::info!("Request: {} {} {}", request.method(), request.version(), request.uri());
         for (key, value) in request.header().values() {
-            info!("Header: {} [ {}]", key, value.iter().fold(String::new(), |acc, b| acc + &b.to_string() + " "));
+            log::info!("Header: {} [ {}]", key, value.iter().fold(String::new(), |acc, b| acc + &b.to_string() + " "));
         }
+        log::info!("Body: {}", request.body().read());
         (true, 0)
+    }
+    fn handle_response(&self, _req_ctx: i32, _request: &Request, response: &Response, _is_error: bool) {
+        log::info!("Status: {}", response.status());
+        log::info!("Body: {}", response.body().read());
     }
 }
 
 fn main() {
-    host::log::init().expect("error initializing logger");
+    admin::init_log().expect("error initializing logger");
+    admin::enable(feature::BufferRequest | feature::BufferResponse);
     let plugin = Plugin;
     register(plugin);
 }

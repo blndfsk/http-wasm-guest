@@ -86,7 +86,7 @@ pub(crate) mod mock {
 
     pub(crate) unsafe fn log_enabled(level: i32) -> i32 {
         // Enable Error(0), Warn(1), Info(2), Debug(3); disable Trace and others
-        if (0..=3).contains(&level) { 1 } else { 0 }
+        if 0 <= level { 1 } else { 0 }
     }
 
     // -------------------------------------------------------------------------

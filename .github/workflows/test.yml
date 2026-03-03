@@ -28,7 +28,7 @@ jobs:
           tool: nextest
 
       - name: Run tests
-        run: cargo nextest run --lib
+        run: cargo nextest run --lib --test-threads=1
 
       - name: Run clippy
         run: cargo clippy --all-targets --all-features

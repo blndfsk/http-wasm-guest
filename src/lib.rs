@@ -6,18 +6,17 @@
 //! requests and responses within a host runtime. Implement [`Guest`] and
 //! call [`register`] to wire up your plugin entry points.
 
-use std::sync::OnceLock;
-
 use crate::host::{Request, Response};
+use crate::sync_cell::SyncCell;
 
 /// Host interface for requests, responses, logging, and feature management.
 pub mod host;
 
+mod sync_cell;
+
 struct Handler {
     guest: Box<dyn Guest>,
 }
-unsafe impl Send for Handler {}
-unsafe impl Sync for Handler {}
 
 /// Trait implemented by guest plugins to handle HTTP requests and responses.
 ///
@@ -41,19 +40,24 @@ pub trait Guest {
     fn handle_response(&self, _req_ctx: i32, _request: &Request, _response: &Response, _is_error: bool) {}
 }
 
-static GUEST: OnceLock<Handler> = OnceLock::new();
+static GUEST: SyncCell<Option<Handler>> = SyncCell::new(None);
 
 /// Register a guest plugin implementation with the runtime.
 ///
 /// Call this once from your guest module initialization to install your
 /// [`Guest`] implementation. Subsequent calls are ignored.
 pub fn register<T: Guest + 'static>(guest: T) {
-    GUEST.get_or_init(|| Handler { guest: Box::new(guest) });
+    // SAFETY: WASM guest is single-threaded.
+    let slot = unsafe { &mut *GUEST.get() };
+    if slot.is_none() {
+        *slot = Some(Handler { guest: Box::new(guest) });
+    }
 }
 
 #[unsafe(export_name = "handle_request")]
 fn http_request() -> i64 {
-    let (next, ctx_next) = match GUEST.get() {
+    // SAFETY: WASM guest is single-threaded.
+    let (next, ctx_next) = match unsafe { &*GUEST.get() } {
         Some(handler) => handler.guest.handle_request(&Request::new(), &Response::new()),
         None => (true, 0),
     };
@@ -63,7 +67,8 @@ fn http_request() -> i64 {
 
 #[unsafe(export_name = "handle_response")]
 fn http_response(req_ctx: i32, is_error: i32) {
-    if let Some(handler) = GUEST.get() {
+    // SAFETY: WASM guest is single-threaded.
+    if let Some(handler) = unsafe { &*GUEST.get() } {
         handler.guest.handle_response(req_ctx, &Request::new(), &Response::new(), is_error == 1)
     };
 }
@@ -71,7 +76,8 @@ fn http_response(req_ctx: i32, is_error: i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::host::{admin, feature};
+    use crate::host::admin;
+    use crate::host::feature;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering};
 

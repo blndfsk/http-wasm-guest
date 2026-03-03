@@ -8,7 +8,7 @@
 
 use http_wasm_guest::{
     Guest,
-    host::{Request, Response},
+    host::{Request, Response, log},
     register,
 };
 
@@ -33,5 +33,6 @@ impl Guest for Plugin {
 /// Registers the plugin with the http-wasm runtime.
 fn main() {
     let plugin = Plugin {};
+    log::write(0, b"Registering plugin to add custom header");
     register(plugin);
 }

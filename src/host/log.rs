@@ -1,234 +1,111 @@
-//! Host-backed logging adapter.
+//! Host-backed logging utilities for http-wasm guest plugins.
 //!
-//! This module integrates the `log` crate with a host-provided logger.
+//! This module provides functions for forwarding log messages to the host runtime.
+//! By default, the `log` feature is enabled, which integrates the standard Rust `log` crate
+//! and provides the [`HostLogger`] implementation for ergonomic logging via macros like
+//! `log::info!`, `log::warn!`, etc.
 //!
-//! Use [`init_with_level`] or [`init`] to install the logger and configure
-//! the maximum log level.
-use log::{Level, LevelFilter, Log, Metadata, Record, SetLoggerError};
-
+//! ## Recommended Usage
+//!
+//! It is recommended to use the default `log` feature and the provided [`HostLogger`].
+//! This allows you to leverage the Rust logging ecosystem and have messages automatically
+//! forwarded to the host with proper filtering and formatting.
+//!
+//! Use [`admin::init_log`] or [`admin::init_log_with_level`] to install the logger and configure the maximum log level.
+//! After initialization, all log records are filtered and sent to the host according to the configured level.
+//! Log messages are formatted into a fixed-size buffer and truncated if longer than 4096 bytes.
+//!
+//! ## Disabling the `log` Feature
+//!
+//! If you wish to disable the `log` integration (for a smaller binary or custom logging),
+//! you can do so by specifying `default-features = false` in your dependency declaration:
+//!
+//! ```toml
+//! http-wasm-guest = { version = "...", default-features = false }
+//! ```
+//!
+//! You can then use the low-level functions [`write`] and [`enabled`] in this module for direct logging.
+//!
+//! ## Example (with feature = "log")
+//!
+//! ```no_run
+//! use http_wasm_guest::host::admin;
+//! use log;
+//!
+//! let _ = admin::init_log();
+//! log::info!("Hello from plugin!");
+//! log::warn!("Something might be wrong!");
+//! ```
+//!
+//! ## Example (manual usage)
+//!
+//! ```no_run
+//! use http_wasm_guest::host::log;
+//!
+//! if log::enabled(0) {
+//!     log::write(0, b"Hello from plugin!");
+//! }
+//! ```
 use crate::host::handler;
 
-static LOGGER: HostLogger = HostLogger;
-static LVL: [i32; 6] = [3, 2, 1, 0, -1, -1];
-
-/// Map a Rust `log::Level` to the host severity code.
+/// Forwards a log message to the host logger with the specified severity level.
 ///
-/// The mapping is defined by `LVL` and must stay consistent with the host.
-fn map_to_host(level: Level) -> i32 {
-    LVL[level as usize]
-}
-/// Logger implementation that forwards records to the host.
+/// # Arguments
 ///
-/// This is installed via [`log::set_logger`] in [`init_log_with_level`].
-struct HostLogger;
-
-impl Log for HostLogger {
-    #[inline]
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= log::max_level()
-    }
-
-    fn log(&self, record: &Record) {
-        if !self.enabled(record.metadata()) {
-            return;
-        }
-        handler::log(map_to_host(record.metadata().level()), format!("{}", record.args()).as_bytes());
-    }
-
-    fn flush(&self) {}
+/// * `level` - The severity code to use for the log message. This should match the host's expected log level mapping.
+/// * `message` - The log message as a byte slice. Messages exceeding the host's buffer limit may be truncated.
+///
+/// This function is typically called internally by the logger implementation, but can be used directly to send custom log messages to the host.
+///
+/// # Example
+///
+/// ```rust
+/// use http_wasm_guest::host::log;
+/// log::write(0, b"Hello from plugin!");
+/// ```
+pub fn write(level: i32, message: &[u8]) {
+    handler::log(level, message);
 }
 
-/// Initialize the host-backed logger with a specific maximum level.
+/// Checks if logging is enabled for the specified severity level.
 ///
-/// After initialization, calls to the `log` crate are forwarded to the host
-/// logger, subject to `level` and host-side filtering.
-#[inline]
-pub fn init_with_level(level: Level) -> Result<(), SetLoggerError> {
-    log::set_max_level(max_level(level.to_level_filter()));
-    log::set_logger(&LOGGER)?;
-    Ok(())
-}
-/// Determine the max_log_level as configured by the host
-/// If the log-level is more restrictive on the host as the plugin tries to configure,
-/// the level is decremented until an enabled level is found.
-fn max_level(mut level: LevelFilter) -> LevelFilter {
-    loop {
-        if handler::log_enabled(level.to_level().map_or_else(|| 3, map_to_host)) {
-            return level;
-        } else {
-            level = level.decrement_severity();
-        }
-    }
-}
-/// Initialize the host-backed logger with the default Info level.
+/// # Arguments
 ///
-/// This is a convenience wrapper around [`init_log_with_level`] using `Level::Info`.
-#[inline]
-pub fn init() -> Result<(), SetLoggerError> {
-    init_with_level(Level::Info)
+/// * `level` - The severity code to check. This should match the host's expected log level mapping.
+///
+/// # Returns
+///
+/// `true` if logging is enabled for the given level; otherwise, `false`.
+///
+/// # Example
+///
+/// ```no_run
+/// use http_wasm_guest::host::log;
+/// if log::enabled(0) {
+///     log::write(0, b"Info-level log message");
+/// }
+/// ```
+pub fn enabled(level: i32) -> bool {
+    handler::log_enabled(level)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_init_log_with_level() {
-        // Logger can only be set once globally, so we just verify it doesn't panic
-        // and returns a result (either Ok or Err if already set)
-        let _result = init_with_level(Level::Info);
-        // If this is the first init, max_level should be Info
-        // If logger was already set, this is still valid
-    }
-
-    #[test]
-    fn map_to_host_error() {
-        // Level::Error = 1, LVL[1] = 2
-        assert_eq!(map_to_host(Level::Error), 2);
-    }
-
-    #[test]
-    fn map_to_host_warn() {
-        // Level::Warn = 2, LVL[2] = 1
-        assert_eq!(map_to_host(Level::Warn), 1);
-    }
-
-    #[test]
-    fn map_to_host_info() {
-        // Level::Info = 3, LVL[3] = 0
-        assert_eq!(map_to_host(Level::Info), 0);
-    }
-
-    #[test]
-    fn map_to_host_debug() {
-        // Level::Debug = 4, LVL[4] = -1
-        assert_eq!(map_to_host(Level::Debug), -1);
-    }
-
-    #[test]
-    fn map_to_host_trace() {
-        // Level::Trace = 5, LVL[5] = -1
-        assert_eq!(map_to_host(Level::Trace), -1);
-    }
-
-    #[test]
-    fn host_logger_enabled_within_max_level() {
-        // Set max level to Info
-        log::set_max_level(LevelFilter::Info);
-        let metadata = log::Metadata::builder().level(Level::Info).target("test").build();
-        assert!(LOGGER.enabled(&metadata));
-    }
-
-    #[test]
-    fn host_logger_enabled_below_max_level() {
-        log::set_max_level(LevelFilter::Info);
-        let metadata = log::Metadata::builder().level(Level::Error).target("test").build();
-        // Error is more severe than Info, so it should be enabled
-        assert!(LOGGER.enabled(&metadata));
-    }
-
-    #[test]
-    fn host_logger_disabled_above_max_level() {
-        log::set_max_level(LevelFilter::Warn);
-        let metadata = log::Metadata::builder().level(Level::Debug).target("test").build();
-        // Debug is less severe than Warn, so it should be disabled
-        assert!(!LOGGER.enabled(&metadata));
-    }
-
-    #[test]
-    fn host_logger_log_enabled_message() {
-        log::set_max_level(LevelFilter::Info);
-        // Should not panic - mock accepts log messages
-        log::info!("test message");
-    }
-
-    #[test]
-    fn host_logger_log_disabled_message() {
-        log::set_max_level(LevelFilter::Error);
-        // Should not panic - message is filtered out before reaching handler
-        log::debug!("this should be filtered");
-    }
-
-    #[test]
-    fn host_logger_flush() {
-        // Flush is a no-op, should not panic
-        LOGGER.flush();
-    }
-
-    #[test]
-    fn log_enabled_check() {
-        // The mock enables levels 0-3 (Error, Warn, Info, Debug)
-        assert!(handler::log_enabled(0)); // Info
-        assert!(handler::log_enabled(1)); // Warn
-        assert!(handler::log_enabled(2)); // Error
-        assert!(handler::log_enabled(3)); // OFF
-        assert!(!handler::log_enabled(-1)); // Debug (disabled)
-        assert!(!handler::log_enabled(4)); // Unknown (disabled)
-    }
-
     #[test]
     fn handler_log_call() {
         // Should not panic - mock accepts any log call
-        handler::log(2, b"test log message");
+        write(2, b"test log message");
     }
-
     #[test]
-    fn test_init_default_level() {
-        // init() uses Level::Info by default
-        // Logger can only be set once, so we just verify it doesn't panic
-        let _result = init();
-    }
-
-    #[test]
-    fn test_max_level_enabled() {
-        // When host has the level enabled, it should return that level
-        let level = max_level(LevelFilter::Info);
-        // Info maps to host level 0, which is enabled in mock
-        assert_eq!(level, LevelFilter::Info);
-    }
-
-    #[test]
-    fn test_max_level_disabled_decrements() {
-        // When host has the level disabled, it should decrement
-        // Trace maps to host level -1, which is disabled in mock
-        let level = max_level(LevelFilter::Trace);
-        // Should decrement to a lower severity level
-        assert!(level < LevelFilter::Trace);
-    }
-
-    #[test]
-    fn host_logger_log_direct_call() {
-        // Set max level high enough to allow Info messages
-        log::set_max_level(LevelFilter::Info);
-
-        // Create a log record directly and call LOGGER.log()
-        let record = log::Record::builder().level(Level::Info).target("test").args(format_args!("direct log test")).build();
-
-        // This should call handler::log internally
-        LOGGER.log(&record);
-    }
-
-    #[test]
-    fn host_logger_log_skips_disabled_level() {
-        // Set max level to Error only
-        log::set_max_level(LevelFilter::Error);
-
-        // Create a Debug record which should be filtered out
-        let record =
-            log::Record::builder().level(Level::Debug).target("test").args(format_args!("this should be skipped")).build();
-
-        // This should return early without calling handler::log
-        LOGGER.log(&record);
-    }
-
-    #[test]
-    fn test_max_level_decrement_until_enabled() {
-        // Start at Trace
-        let level = LevelFilter::Trace;
-
-        // Call max_level, which should decrement to Info
-        let result = max_level(level);
-
-        assert_eq!(result, LevelFilter::Info, "max_level should decrement to Warn when only Warn is enabled on host");
+    fn log_enabled_check() {
+        // The mock enables levels 0-3 (Error, Warn, Info, Debug)
+        assert!(!enabled(-2)); // Trace (disabled)
+        assert!(!enabled(-1)); // Debug (disabled)
+        assert!(enabled(0)); // Info
+        assert!(enabled(1)); // Warn
+        assert!(enabled(2)); // Error
+        assert!(enabled(3)); // Fatal
+        assert!(enabled(4)); // Panic
     }
 }
