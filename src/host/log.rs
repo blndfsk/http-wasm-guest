@@ -11,7 +11,7 @@
 //! This allows you to leverage the Rust logging ecosystem and have messages automatically
 //! forwarded to the host with proper filtering and formatting.
 //!
-//! Use [`admin::init_log`] or [`admin::init_log_with_level`] to install the logger and configure the maximum log level.
+//! Use [`HostLogger::init`] or [`HostLogger::init_with_level`] to install the logger and configure the maximum log level.
 //! After initialization, all log records are filtered and sent to the host according to the configured level.
 //! Log messages are formatted into a fixed-size buffer and truncated if longer than 4096 bytes.
 //!
@@ -29,10 +29,10 @@
 //! ## Example (with feature = "log")
 //!
 //! ```no_run
-//! use http_wasm_guest::host::admin;
+//! use http_wasm_guest::HostLogger;
 //! use log;
 //!
-//! let _ = admin::init_log();
+//! let _ = HostLogger::init();
 //! log::info!("Hello from plugin!");
 //! log::warn!("Something might be wrong!");
 //! ```

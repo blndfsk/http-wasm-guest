@@ -1,4 +1,4 @@
-## v0.10.0
+## v0.10.1
 
 ### API-Breaking Changes
 
@@ -6,7 +6,7 @@
   The logging API has been restructured. The host logger implementation is now provided only if the feature flag `log` is enabled.
   - To disable logging integration, set `default-features = false` in your dependency declaration.
   - The low-level logging functions (`write`, `enabled`) are now accessed via `host::log`.
-  - The logger initialization functions are now `host::admin::init_log()` and `host::admin::init_log_with_level()`.
+  - The logger initialization functions are now `HostLogger::init()` and `HostLogger::init_with_level()`.
 
 **Removed `Default` Implementation for `Request` and `Response`:**
   The `Default` trait is no longer implemented for the `Request` and `Response` types and the `new()` functions are no longer visible.

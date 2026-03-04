@@ -1,12 +1,87 @@
 use log::{Level, LevelFilter, Log, Metadata, Record, SetLoggerError};
 use std::io::Write;
 
-use crate::host::handler;
+use crate::{
+    host,
+    memory::{self, Buffer},
+};
 
-use crate::sync_cell::SyncCell;
+static LOGGER: HostLogger = HostLogger;
+const TRUNC_MARKER: &[u8] = b"... [truncated]";
 
-static LOGGER: HostLogger = HostLogger {};
+/// Logger implementation that forwards records to the host.
+///
+/// This integrates the Rust `log` crate with the http-wasm guest runtime's logging system.
+/// It provides logging for plugin authors via standard macros (`log::info!`, `log::warn!`, etc.).
+pub struct HostLogger;
 
+impl Log for HostLogger {
+    #[inline]
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= log::max_level()
+    }
+
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            let (buf, written) = format_log_message(record.args());
+            host::log::write(host_level(record.metadata()), buf.as_subslice(written));
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+/// Formats the log message into the static buffer, applying truncation if needed.
+/// Returns a reference to the buffer and the number of bytes written.
+fn format_log_message(args: &std::fmt::Arguments) -> (&'static mut Buffer, usize) {
+    // SAFETY: WASM guest is single-threaded.
+    let buf = memory::buffer();
+    let size = buf.max_size() - TRUNC_MARKER.len();
+    let mut slice = buf.as_mut_subslice(size);
+    let result = write!(slice, "{}", args);
+
+    let mut written = size - slice.len();
+
+    // If the message was truncated, append the marker
+    if result.is_err() {
+        buf.append(TRUNC_MARKER);
+        written = buf.len();
+    }
+
+    (buf, written)
+}
+
+impl HostLogger {
+    /// Initialize the host-backed logger with a specific maximum level.
+    ///
+    /// This registers a HostLogger implementation for forwarding log records to the http-wasm host.
+    pub fn init_with_level(level: Level) -> Result<(), SetLoggerError> {
+        set_global_logger(level)
+    }
+
+    /// Initialize the host-backed logger with the default Info level.
+    ///
+    /// This is a convenience wrapper for [`init_with_level`] using `Level::Info`.
+    pub fn init() -> Result<(), SetLoggerError> {
+        set_global_logger(Level::Info)
+    }
+}
+fn set_global_logger(level: Level) -> Result<(), SetLoggerError> {
+    log::set_max_level(max_level(level.to_level_filter()));
+    log::set_logger(&LOGGER)
+}
+/// Determine the max_log_level as configured by the host
+/// If the log-level is more restrictive on the host as the plugin tries to configure,
+/// the level is decremented until an enabled level is found.
+fn max_level(mut level_filter: LevelFilter) -> LevelFilter {
+    loop {
+        if host::log::enabled(level_filter.to_level().map_or_else(|| -3, map_to_host)) {
+            return level_filter;
+        } else {
+            level_filter = level_filter.decrement_severity();
+        }
+    }
+}
 /// Map a Rust `log::Level` to the host severity code.
 ///
 /// The mapping is defined by `LVL` and must stay consistent with the host.
@@ -30,82 +105,6 @@ fn host_level(md: &Metadata) -> i32 {
     //     _ => map_to_host(md.level()),
     // }
 }
-/// Logger implementation that forwards records to the host.
-///
-/// This is installed via [`log::set_logger`] in [`init_log_with_level`].
-struct HostLogger {}
-
-const LOG_BUF_SIZE: usize = 4096;
-const TRUNC_MARKER: &[u8] = b"... [truncated]";
-const TRUNC_MARKER_LEN: usize = TRUNC_MARKER.len();
-static BUF: SyncCell<[u8; LOG_BUF_SIZE]> = SyncCell::new([0u8; LOG_BUF_SIZE]);
-
-impl Log for HostLogger {
-    #[inline]
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= log::max_level()
-    }
-
-    fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            let (buf, written) = format_log_message(record.args());
-            handler::log(host_level(record.metadata()), &buf[..written]);
-        }
-    }
-
-    fn flush(&self) {}
-}
-
-/// Formats the log message into the static buffer, applying truncation if needed.
-/// Returns a reference to the buffer and the number of bytes written.
-fn format_log_message(args: &std::fmt::Arguments) -> (&'static mut [u8; LOG_BUF_SIZE], usize) {
-    // SAFETY: WASM guest is single-threaded.
-    let buf = unsafe { &mut *BUF.get() };
-
-    // Reserve space for the truncation marker
-    let mut trunc = &mut buf[..LOG_BUF_SIZE - TRUNC_MARKER_LEN];
-    let result = write!(trunc, "{}", args);
-
-    let mut written = LOG_BUF_SIZE - TRUNC_MARKER_LEN - trunc.len();
-
-    // If the message was truncated, append the marker
-    if result.is_err() {
-        buf[LOG_BUF_SIZE - TRUNC_MARKER_LEN..].copy_from_slice(TRUNC_MARKER);
-        written = LOG_BUF_SIZE;
-    }
-
-    (buf, written)
-}
-/// Initialize the host-backed logger with a specific maximum level.
-///
-/// This registers a HostLogger implementation for forwarding log records to the http-wasm host.
-///
-/// This module integrates the Rust `log` crate with the http-wasm guest runtime's logging system.
-/// It provides logging for plugin authors via standard macros (`log::info!`, `log::warn!`, etc.).
-pub fn init_log_with_level(level: Level) -> Result<(), SetLoggerError> {
-    log::set_max_level(max_level(level.to_level_filter()));
-    log::set_logger(&LOGGER)
-}
-
-/// Initialize the host-backed logger with the default Info level.
-///
-/// This is a convenience wrapper around [`init_log_with_level`] using `Level::Info`.
-pub fn init_log() -> Result<(), SetLoggerError> {
-    init_log_with_level(Level::Info)
-}
-
-/// Determine the max_log_level as configured by the host
-/// If the log-level is more restrictive on the host as the plugin tries to configure,
-/// the level is decremented until an enabled level is found.
-fn max_level(mut level_filter: LevelFilter) -> LevelFilter {
-    loop {
-        if handler::log_enabled(level_filter.to_level().map_or_else(|| -3, map_to_host)) {
-            return level_filter;
-        } else {
-            level_filter = level_filter.decrement_severity();
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -114,10 +113,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_init_log_with_level() {
+    fn test_init_with_level() {
         // Logger can only be set once globally, so we just verify it doesn't panic
         // and returns a result (either Ok or Err if already set)
-        let _result = init_log_with_level(Level::Info);
+        let _result = HostLogger::init_with_level(Level::Info);
         // If this is the first init, max_level should be Info
         // If logger was already set, this is still valid
     }
@@ -141,11 +140,20 @@ mod tests {
     #[test]
     fn test_log_truncation_marker() {
         // Compose a message that will overflow the buffer
-        let long_msg = "A".repeat(LOG_BUF_SIZE);
+        let long_msg = "A".repeat(3000);
         let (buf, written) = super::format_log_message(&format_args!("{}", long_msg));
-        let slice = &buf[..written];
+        let slice = buf.as_subslice(written);
+        assert_eq!(slice.len(), buf.max_size(), "Truncated log should fill the buffer");
         assert!(slice.ends_with(TRUNC_MARKER), "Log message should end with truncation marker");
-        assert_eq!(slice.len(), LOG_BUF_SIZE, "Truncated log should fill the buffer");
+    }
+
+    #[test]
+    fn test_format_log_message() {
+        // Compose a message that will overflow the buffer
+        let long_msg = "A".repeat(1000);
+        let (buf, written) = super::format_log_message(&format_args!("{}", long_msg));
+        assert_eq!(written, 1000, "message should not be truncated");
+        assert_eq!(buf.as_subslice(written), long_msg.as_bytes());
     }
 
     #[test]
@@ -196,7 +204,7 @@ mod tests {
     fn test_init_default_level() {
         // init() uses Level::Info by default
         // Logger can only be set once, so we just verify it doesn't panic
-        let _result = init_log();
+        let _result = HostLogger::init();
     }
 
     #[test]

@@ -7,12 +7,11 @@
 //! call [`register`] to wire up your plugin entry points.
 
 use crate::host::{Request, Response};
-use crate::sync_cell::SyncCell;
+use crate::memory::SyncCell;
 
 /// Host interface for requests, responses, logging, and feature management.
 pub mod host;
-
-mod sync_cell;
+mod memory;
 
 struct Handler {
     guest: Box<dyn Guest>,
@@ -48,9 +47,9 @@ static GUEST: SyncCell<Option<Handler>> = SyncCell::new(None);
 /// [`Guest`] implementation. Subsequent calls are ignored.
 pub fn register<T: Guest + 'static>(guest: T) {
     // SAFETY: WASM guest is single-threaded.
-    let slot = unsafe { &mut *GUEST.get() };
-    if slot.is_none() {
-        *slot = Some(Handler { guest: Box::new(guest) });
+    let guest_handler = unsafe { &mut *GUEST.get() };
+    if guest_handler.is_none() {
+        *guest_handler = Some(Handler { guest: Box::new(guest) });
     }
 }
 
@@ -72,6 +71,11 @@ fn http_response(req_ctx: i32, is_error: i32) {
         handler.guest.handle_response(req_ctx, &Request::new(), &Response::new(), is_error == 1)
     };
 }
+
+#[cfg(feature = "log")]
+mod host_logger;
+#[cfg(feature = "log")]
+pub use host_logger::HostLogger;
 
 #[cfg(test)]
 mod tests {
