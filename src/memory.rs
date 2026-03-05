@@ -41,29 +41,14 @@ const SIZE: usize = 2048;
 pub(crate) struct Buffer {
     data: [u8; SIZE],
 }
-impl std::io::Write for Buffer {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let len = std::cmp::min(buf.len(), self.len());
-        self.data[..len].copy_from_slice(&buf[..len]);
-        Ok(len)
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
 
 impl Buffer {
     const fn new() -> Buffer {
         Self { data: [0u8; SIZE] }
     }
-    #[inline]
-    pub(crate) fn len(&self) -> usize {
-        self.data.len()
-    }
 
     #[inline]
-    pub(crate) fn max_size(&self) -> usize {
+    pub(crate) fn capacity(&self) -> usize {
         SIZE
     }
 
@@ -73,24 +58,16 @@ impl Buffer {
     pub(crate) fn as_slice(&self) -> &[u8] {
         &self.data
     }
+    pub(crate) fn as_mut_slice(&mut self) -> &mut [u8] {
+        &mut self.data
+    }
     pub(crate) fn as_subslice(&self, size: usize) -> &[u8] {
         &self.data[0..size]
-    }
-    pub(crate) fn as_mut_subslice(&mut self, size: usize) -> &mut [u8] {
-        &mut self.data[0..size]
     }
 
     /// returns a copy of the contents as an owned type
     pub(crate) fn to_boxed_slice(&self, size: usize) -> Box<[u8]> {
         Box::from(self.as_subslice(size))
-    }
-    /// Appends the given data to the end of the buffer, truncating if necessary.
-    ///
-    /// If `data` is larger than the buffer size, only the last `SIZE` bytes are appended.
-    pub(crate) fn append(&mut self, data: &[u8]) {
-        let copy_len = std::cmp::min(data.len(), SIZE);
-        let start = SIZE - copy_len;
-        self.data[start..].copy_from_slice(&data[..copy_len]);
     }
 
     #[cfg(test)]
@@ -126,7 +103,7 @@ mod tests {
     #[test]
     fn test_new_buffer() {
         let buf = Buffer::new();
-        assert_eq!(buf.len(), SIZE);
+        assert_eq!(buf.capacity(), SIZE);
         assert!(buf.as_slice().iter().all(|&b| b == 0));
     }
     #[test]

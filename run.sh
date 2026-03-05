@@ -15,18 +15,8 @@ cargo build --target wasm32-wasip1 --example $plugin
 container=$(buildah from traefik:v3.6)
 buildah copy $container target/wasm32-wasip1/debug/examples/$plugin.wasm /opt/traefik/plugins-local/src/$plugin/plugin.wasm
 buildah copy $container examples/$plugin.yml /opt/traefik/plugins-local/src/$plugin/.traefik.yml
-entrypoint=$(
-cat<<EOF
-[ "traefik",
-  "--entrypoints.web.address=:8080",
-  "--experimental.localplugins.$plugin.modulename=$plugin",
-  "--providers.docker=true",
-  "--log.level=INFO"
-]
-EOF
-)
+
 buildah config --workingdir "/opt/traefik" $container
-buildah config --entrypoint "$entrypoint" $container
 buildah commit $container localhost/$plugin
 buildah rm $container
 
@@ -41,4 +31,5 @@ podman run -d --pod $pod --replace --name whoami \
 
 podman run -it --rm --pod $pod \
     --volume /run/user/${UID}/podman/podman.sock:/var/run/docker.sock \
-    localhost/$plugin
+    localhost/$plugin --entrypoints.web.address=:8080 --providers.docker=true --log.level=INFO \
+    --experimental.localplugins.$plugin.modulename=$plugin
