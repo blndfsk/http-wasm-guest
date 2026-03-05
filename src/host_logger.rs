@@ -36,16 +36,17 @@ impl Log for HostLogger {
 fn format_log_message(args: &std::fmt::Arguments) -> (&'static mut Buffer, usize) {
     // SAFETY: WASM guest is single-threaded.
     let buf = memory::buffer();
-    let size = buf.max_size() - TRUNC_MARKER.len();
-    let mut slice = buf.as_mut_subslice(size);
+    let capacity = buf.capacity();
+
+    let mut slice = buf.as_mut_slice();
     let result = write!(slice, "{}", args);
-
-    let mut written = size - slice.len();
-
-    // If the message was truncated, append the marker
+    let mut written = capacity - slice.len();
+    // If the message could be written, change the last bytes to marker
     if result.is_err() {
-        buf.append(TRUNC_MARKER);
-        written = buf.len();
+        let start = capacity - TRUNC_MARKER.len();
+        let slice = buf.as_mut_slice();
+        slice[start..].copy_from_slice(TRUNC_MARKER);
+        written = buf.capacity();
     }
 
     (buf, written)
@@ -143,19 +144,27 @@ mod tests {
         let long_msg = "A".repeat(3000);
         let (buf, written) = super::format_log_message(&format_args!("{}", long_msg));
         let slice = buf.as_subslice(written);
-        assert_eq!(slice.len(), buf.max_size(), "Truncated log should fill the buffer");
+        assert_eq!(slice.len(), buf.capacity(), "Truncated log should fill the buffer");
         assert!(slice.ends_with(TRUNC_MARKER), "Log message should end with truncation marker");
     }
 
     #[test]
     fn test_format_log_message() {
         // Compose a message that will overflow the buffer
-        let long_msg = "A".repeat(1000);
-        let (buf, written) = super::format_log_message(&format_args!("{}", long_msg));
-        assert_eq!(written, 1000, "message should not be truncated");
-        assert_eq!(buf.as_subslice(written), long_msg.as_bytes());
+        let msg = "Test";
+        let (buf, written) = super::format_log_message(&format_args!("{}", msg));
+        assert_eq!(written, msg.len(), "message should not be truncated");
+        assert_eq!(buf.as_subslice(written), msg.as_bytes());
     }
 
+    #[test]
+    fn test_format_log_message_limit() {
+        // Compose a message that will overflow the buffer
+        let msg = "A".repeat(2048);
+        let (buf, written) = super::format_log_message(&format_args!("{}", msg));
+        assert_eq!(written, msg.len(), "message should not be truncated");
+        assert_eq!(buf.as_subslice(written), msg.as_bytes());
+    }
     #[test]
     fn host_logger_enabled_within_max_level() {
         // Set max level to Info

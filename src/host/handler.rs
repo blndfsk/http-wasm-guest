@@ -13,8 +13,8 @@ pub(crate) fn log_enabled(level: i32) -> bool {
 
 pub(crate) fn get_config() -> Box<[u8]> {
     let buffer = memory::buffer();
-    match unsafe { ffi::get_config(buffer.as_mut_ptr(), buffer.len() as i32) as usize } {
-        size if size <= buffer.len() => buffer.to_boxed_slice(size),
+    match unsafe { ffi::get_config(buffer.as_mut_ptr(), buffer.capacity() as i32) as usize } {
+        size if size <= buffer.capacity() => buffer.to_boxed_slice(size),
         capacity => {
             let mut buf: Box<[MaybeUninit<u8>]> = Box::new_uninit_slice(capacity);
             let ptr = buf.as_mut_ptr() as *mut u8;
@@ -33,9 +33,9 @@ pub(crate) fn enable_feature(feature: i32) -> i32 {
 pub(crate) fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
     let buffer = memory::buffer();
     let count_len =
-        unsafe { ffi::get_header_values(kind, name.as_ptr(), name.len() as i32, buffer.as_mut_ptr(), buffer.len() as i32) };
+        unsafe { ffi::get_header_values(kind, name.as_ptr(), name.len() as i32, buffer.as_mut_ptr(), buffer.capacity() as i32) };
     let (count, len) = split_i64(count_len);
-    if len as usize <= buffer.len() {
+    if len as usize <= buffer.capacity() {
         return split(buffer.as_slice(), count, len);
     }
 
@@ -50,9 +50,9 @@ pub(crate) fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
 
 pub(crate) fn header_names(kind: i32) -> Vec<Box<[u8]>> {
     let buffer = memory::buffer();
-    let count_len = unsafe { ffi::get_header_names(kind, buffer.as_mut_ptr(), buffer.len() as i32) };
+    let count_len = unsafe { ffi::get_header_names(kind, buffer.as_mut_ptr(), buffer.capacity() as i32) };
     let (count, len) = split_i64(count_len);
-    if len as usize <= buffer.len() {
+    if len as usize <= buffer.capacity() {
         return split(buffer.as_slice(), count, len);
     }
 
@@ -79,13 +79,13 @@ pub(crate) fn add_header_value(kind: i32, name: &[u8], value: &[u8]) {
 
 pub(crate) fn source_addr() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { ffi::get_source_addr(buffer.as_mut_ptr(), buffer.len() as i32) as usize };
+    let size = unsafe { ffi::get_source_addr(buffer.as_mut_ptr(), buffer.capacity() as i32) as usize };
     buffer.to_boxed_slice(size)
 }
 
 pub(crate) fn method() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { ffi::get_method(buffer.as_mut_ptr(), buffer.len() as i32) as usize };
+    let size = unsafe { ffi::get_method(buffer.as_mut_ptr(), buffer.capacity() as i32) as usize };
     buffer.to_boxed_slice(size)
 }
 
@@ -99,13 +99,13 @@ pub(crate) fn set_uri(uri: &[u8]) {
 
 pub(crate) fn version() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { ffi::get_protocol_version(buffer.as_mut_ptr(), buffer.len() as i32) as usize };
+    let size = unsafe { ffi::get_protocol_version(buffer.as_mut_ptr(), buffer.capacity() as i32) as usize };
     buffer.to_boxed_slice(size)
 }
 
 pub(crate) fn uri() -> Box<[u8]> {
     let buffer = memory::buffer();
-    let size = unsafe { ffi::get_uri(buffer.as_mut_ptr(), buffer.len() as i32) as usize };
+    let size = unsafe { ffi::get_uri(buffer.as_mut_ptr(), buffer.capacity() as i32) as usize };
     buffer.to_boxed_slice(size)
 }
 
@@ -123,7 +123,7 @@ pub(crate) fn body(kind: i32) -> Box<[u8]> {
     let mut size;
     let mut out = Vec::new();
     while !eof {
-        (eof, size) = eof_size(unsafe { ffi::read_body(kind, buffer.as_mut_ptr(), buffer.len() as i32) });
+        (eof, size) = eof_size(unsafe { ffi::read_body(kind, buffer.as_mut_ptr(), buffer.capacity() as i32) });
         out.push(buffer.to_boxed_slice(size as usize));
     }
     out.concat().into_boxed_slice()
