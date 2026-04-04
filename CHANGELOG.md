@@ -1,3 +1,14 @@
+## v0.10.2
+
+No API changes. This release focuses on robustness and correctness of the internal FFI layer and memory handling.
+
+### Bug Fixes
+- Fix truncation in `request.uri()` when host data exceeds 2048 bytes.
+
+### Safety
+- Harden against malformed FFI return values.
+- Limit `request.body()` and `response.body()` reads to 16 MB.
+
 ## v0.10.1
 
 ### API-Breaking Changes

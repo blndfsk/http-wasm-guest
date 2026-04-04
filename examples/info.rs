@@ -15,7 +15,7 @@ struct Plugin {}
 impl Guest for Plugin {
     /// Handles incoming requests by logging metadata and headers.
     fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
-        info!("Request: {} {} {}", request.method(), request.version(), request.uri());
+        info!("Request: {} {} {} {}", request.method(), request.version(), request.uri(), request.source_addr());
         for (key, value) in request.header().values() {
             info!("Header: {} [ {}]", key, value.iter().fold(String::new(), |acc, b| acc + &b.to_string() + " "));
         }

@@ -1,10 +1,7 @@
 use log::{Level, LevelFilter, Log, Metadata, Record, SetLoggerError};
 use std::io::Write;
 
-use crate::{
-    host,
-    memory::{self, Buffer},
-};
+use crate::{host, memory};
 
 static LOGGER: HostLogger = HostLogger;
 const TRUNC_MARKER: &[u8] = b"... [truncated]";
@@ -23,33 +20,31 @@ impl Log for HostLogger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            let (buf, written) = format_log_message(record.args());
-            host::log::write(host_level(record.metadata()), buf.as_subslice(written));
+            memory::with_buffer(|buf| {
+                let written = format_log_message(buf, record.args());
+                host::log::write(host_level(record.metadata()), buf.as_subslice(written));
+            });
         }
     }
 
     fn flush(&self) {}
 }
 
-/// Formats the log message into the static buffer, applying truncation if needed.
-/// Returns a reference to the buffer and the number of bytes written.
-fn format_log_message(args: &std::fmt::Arguments) -> (&'static mut Buffer, usize) {
-    // SAFETY: WASM guest is single-threaded.
-    let buf = memory::buffer();
+/// Formats the log message into the provided buffer, applying truncation if needed.
+/// Returns the number of bytes written.
+fn format_log_message(buf: &mut memory::Buffer, args: &std::fmt::Arguments) -> usize {
     let capacity = buf.capacity();
-
     let mut slice = buf.as_mut_slice();
     let result = write!(slice, "{}", args);
     let mut written = capacity - slice.len();
-    // If the message could be written, change the last bytes to marker
+    // If the message could not be written fully, apply truncation marker
     if result.is_err() {
         let start = capacity - TRUNC_MARKER.len();
         let slice = buf.as_mut_slice();
         slice[start..].copy_from_slice(TRUNC_MARKER);
         written = buf.capacity();
     }
-
-    (buf, written)
+    written
 }
 
 impl HostLogger {
@@ -142,28 +137,32 @@ mod tests {
     fn test_log_truncation_marker() {
         // Compose a message that will overflow the buffer
         let long_msg = "A".repeat(3000);
-        let (buf, written) = super::format_log_message(&format_args!("{}", long_msg));
-        let slice = buf.as_subslice(written);
-        assert_eq!(slice.len(), buf.capacity(), "Truncated log should fill the buffer");
-        assert!(slice.ends_with(TRUNC_MARKER), "Log message should end with truncation marker");
+        memory::with_buffer(|buf| {
+            let written = super::format_log_message(buf, &format_args!("{}", long_msg));
+            let slice = buf.as_subslice(written);
+            assert_eq!(slice.len(), buf.capacity(), "Truncated log should fill the buffer");
+            assert!(slice.ends_with(TRUNC_MARKER), "Log message should end with truncation marker");
+        });
     }
 
     #[test]
     fn test_format_log_message() {
-        // Compose a message that will overflow the buffer
         let msg = "Test";
-        let (buf, written) = super::format_log_message(&format_args!("{}", msg));
-        assert_eq!(written, msg.len(), "message should not be truncated");
-        assert_eq!(buf.as_subslice(written), msg.as_bytes());
+        memory::with_buffer(|buf| {
+            let written = super::format_log_message(buf, &format_args!("{}", msg));
+            assert_eq!(written, msg.len(), "message should not be truncated");
+            assert_eq!(buf.as_subslice(written), msg.as_bytes());
+        });
     }
 
     #[test]
     fn test_format_log_message_limit() {
-        // Compose a message that will overflow the buffer
         let msg = "A".repeat(2048);
-        let (buf, written) = super::format_log_message(&format_args!("{}", msg));
-        assert_eq!(written, msg.len(), "message should not be truncated");
-        assert_eq!(buf.as_subslice(written), msg.as_bytes());
+        memory::with_buffer(|buf| {
+            let written = super::format_log_message(buf, &format_args!("{}", msg));
+            assert_eq!(written, msg.len(), "message should not be truncated");
+            assert_eq!(buf.as_subslice(written), msg.as_bytes());
+        });
     }
     #[test]
     fn host_logger_enabled_within_max_level() {

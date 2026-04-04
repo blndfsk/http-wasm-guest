@@ -1,29 +1,18 @@
-use std::mem::MaybeUninit;
-
 use crate::memory;
 mod ffi;
 
+const MAX_BODY_SIZE: usize = 16 * 1024 * 1024; // 16 MB
+
 pub(crate) fn log(level: i32, message: &[u8]) {
-    unsafe { ffi::log(level, message.as_ptr(), message.len() as i32) };
+    unsafe { ffi::log(level, message.as_ptr(), as_i32(message.len())) };
 }
 
 pub(crate) fn log_enabled(level: i32) -> bool {
-    matches!(unsafe { ffi::log_enabled(level) }, 1)
+    (unsafe { ffi::log_enabled(level) }) != 0
 }
 
 pub(crate) fn get_config() -> Box<[u8]> {
-    let buffer = memory::buffer();
-    match unsafe { ffi::get_config(buffer.as_mut_ptr(), buffer.capacity() as i32) as usize } {
-        size if size <= buffer.capacity() => buffer.to_boxed_slice(size),
-        capacity => {
-            let mut buf: Box<[MaybeUninit<u8>]> = Box::new_uninit_slice(capacity);
-            let ptr = buf.as_mut_ptr() as *mut u8;
-            unsafe {
-                let _length = ffi::get_config(ptr, capacity as i32);
-                buf.assume_init()
-            }
-        }
-    }
+    read_buf(|buf, limit| unsafe { ffi::get_config(buf, limit) })
 }
 
 pub(crate) fn enable_feature(feature: i32) -> i32 {
@@ -31,82 +20,47 @@ pub(crate) fn enable_feature(feature: i32) -> i32 {
 }
 
 pub(crate) fn header_values(kind: i32, name: &[u8]) -> Vec<Box<[u8]>> {
-    let buffer = memory::buffer();
-    let count_len =
-        unsafe { ffi::get_header_values(kind, name.as_ptr(), name.len() as i32, buffer.as_mut_ptr(), buffer.capacity() as i32) };
-    let (count, len) = split_i64(count_len);
-    if len as usize <= buffer.capacity() {
-        return split(buffer.as_slice(), count, len);
-    }
-
-    let mut buf: Box<[MaybeUninit<u8>]> = Box::new_uninit_slice(len as usize);
-    let ptr = buf.as_mut_ptr() as *mut u8;
-    unsafe {
-        let count_len = ffi::get_header_values(kind, name.as_ptr(), name.len() as i32, ptr, len);
-        let (count, len) = split_i64(count_len);
-        split(buf.assume_init_ref(), count, len)
-    }
+    read_buf_multi(|buf, limit| unsafe { ffi::get_header_values(kind, name.as_ptr(), as_i32(name.len()), buf, limit) })
 }
 
 pub(crate) fn header_names(kind: i32) -> Vec<Box<[u8]>> {
-    let buffer = memory::buffer();
-    let count_len = unsafe { ffi::get_header_names(kind, buffer.as_mut_ptr(), buffer.capacity() as i32) };
-    let (count, len) = split_i64(count_len);
-    if len as usize <= buffer.capacity() {
-        return split(buffer.as_slice(), count, len);
-    }
-
-    let mut buf: Box<[MaybeUninit<u8>]> = Box::new_uninit_slice(len as usize);
-    let ptr = buf.as_mut_ptr() as *mut u8;
-    unsafe {
-        let count_len = ffi::get_header_names(kind, ptr, len);
-        let (count, len) = split_i64(count_len);
-        split(buf.assume_init_ref(), count, len)
-    }
+    read_buf_multi(|buf, limit| unsafe { ffi::get_header_names(kind, buf, limit) })
 }
 
 pub(crate) fn remove_header(kind: i32, name: &[u8]) {
-    unsafe { ffi::remove_header(kind, name.as_ptr(), name.len() as i32) }
+    unsafe { ffi::remove_header(kind, name.as_ptr(), as_i32(name.len())) }
 }
 
 pub(crate) fn set_header(kind: i32, name: &[u8], value: &[u8]) {
-    unsafe { ffi::set_header_value(kind, name.as_ptr(), name.len() as i32, value.as_ptr(), value.len() as i32) };
+    unsafe { ffi::set_header_value(kind, name.as_ptr(), as_i32(name.len()), value.as_ptr(), as_i32(value.len())) };
 }
 
 pub(crate) fn add_header_value(kind: i32, name: &[u8], value: &[u8]) {
-    unsafe { ffi::add_header_value(kind, name.as_ptr(), name.len() as i32, value.as_ptr(), value.len() as i32) };
+    unsafe { ffi::add_header_value(kind, name.as_ptr(), as_i32(name.len()), value.as_ptr(), as_i32(value.len())) };
 }
 
 pub(crate) fn source_addr() -> Box<[u8]> {
-    let buffer = memory::buffer();
-    let size = unsafe { ffi::get_source_addr(buffer.as_mut_ptr(), buffer.capacity() as i32) as usize };
-    buffer.to_boxed_slice(size)
+    read_buf(|buf, limit| unsafe { ffi::get_source_addr(buf, limit) })
 }
 
 pub(crate) fn method() -> Box<[u8]> {
-    let buffer = memory::buffer();
-    let size = unsafe { ffi::get_method(buffer.as_mut_ptr(), buffer.capacity() as i32) as usize };
-    buffer.to_boxed_slice(size)
+    read_buf(|buf, limit| unsafe { ffi::get_method(buf, limit) })
 }
 
 pub(crate) fn set_method(method: &[u8]) {
-    unsafe { ffi::set_method(method.as_ptr(), method.len() as i32) };
+    unsafe { ffi::set_method(method.as_ptr(), as_i32(method.len())) };
 }
 
 pub(crate) fn set_uri(uri: &[u8]) {
-    unsafe { ffi::set_uri(uri.as_ptr(), uri.len() as i32) };
+    unsafe { ffi::set_uri(uri.as_ptr(), as_i32(uri.len())) };
 }
 
 pub(crate) fn version() -> Box<[u8]> {
-    let buffer = memory::buffer();
-    let size = unsafe { ffi::get_protocol_version(buffer.as_mut_ptr(), buffer.capacity() as i32) as usize };
-    buffer.to_boxed_slice(size)
+    read_buf(|buf, limit| unsafe { ffi::get_protocol_version(buf, limit) })
 }
 
 pub(crate) fn uri() -> Box<[u8]> {
-    let buffer = memory::buffer();
-    let size = unsafe { ffi::get_uri(buffer.as_mut_ptr(), buffer.capacity() as i32) as usize };
-    buffer.to_boxed_slice(size)
+    read_buf(|buf, limit| unsafe { ffi::get_uri(buf, limit) })
 }
 
 pub(crate) fn status_code() -> i32 {
@@ -118,45 +72,72 @@ pub(crate) fn set_status_code(code: i32) {
 }
 
 pub(crate) fn body(kind: i32) -> Box<[u8]> {
-    let buffer = memory::buffer();
-    let mut eof = false;
-    let mut size;
     let mut out = Vec::new();
-    while !eof {
-        (eof, size) = eof_size(unsafe { ffi::read_body(kind, buffer.as_mut_ptr(), buffer.capacity() as i32) });
-        out.push(buffer.to_boxed_slice(size as usize));
+    let max_iterations = MAX_BODY_SIZE / memory::with_buffer(|b| b.capacity());
+    for _ in 0..max_iterations {
+        let eof = memory::with_buffer(|buffer| {
+            let (eof, size) = eof_size(unsafe { ffi::read_body(kind, buffer.as_mut_ptr(), as_i32(buffer.capacity())) });
+            out.extend_from_slice(buffer.as_subslice(size.max(0) as usize));
+            eof
+        });
+        if eof || out.len() >= MAX_BODY_SIZE {
+            break;
+        }
     }
-    out.concat().into_boxed_slice()
+    out.into_boxed_slice()
 }
 
 pub(crate) fn write_body(kind: i32, body: &[u8]) {
     unsafe {
-        ffi::write_body(kind, body.as_ptr(), body.len() as i32);
+        ffi::write_body(kind, body.as_ptr(), as_i32(body.len()));
     }
+}
+
+/// Converts a `usize` to `i32` for the FFI boundary.
+/// Panics instead of wrapping to negative values.
+fn as_i32(n: usize) -> i32 {
+    i32::try_from(n).expect("length exceeds i32::MAX")
+}
+
+/// Calls an FFI function that writes into a buffer and returns the actual size.
+/// If the data exceeds the shared buffer, a larger allocation is made and the call is retried.
+fn read_buf(f: impl Fn(*mut u8, i32) -> i32) -> Box<[u8]> {
+    memory::with_buffer(|buffer| {
+        let size = f(buffer.as_mut_ptr(), as_i32(buffer.capacity())).max(0) as usize;
+        if size <= buffer.capacity() {
+            return buffer.to_boxed_slice(size);
+        }
+        let mut buf = vec![0u8; size];
+        let length = f(buf.as_mut_ptr(), as_i32(size)).max(0) as usize;
+        buf.truncate(length);
+        buf.into_boxed_slice()
+    })
+}
+
+/// Like `read_buf`, but for FFI functions that return a packed i64 (count << 32 | len)
+/// and NUL-delimited multi-value data. Handles the overflow-retry pattern and splits
+/// the result into individual byte slices.
+fn read_buf_multi(f: impl Fn(*mut u8, i32) -> i64) -> Vec<Box<[u8]>> {
+    memory::with_buffer(|buffer| {
+        let (count, len) = split_i64(f(buffer.as_mut_ptr(), as_i32(buffer.capacity())));
+        let len = len.max(0);
+        if len as usize <= buffer.capacity() {
+            return split(buffer.as_slice(), count, len);
+        }
+
+        let mut buf = vec![0u8; len as usize];
+        let (count, len) = split_i64(f(buf.as_mut_ptr(), len));
+        split(&buf, count, len)
+    })
 }
 
 fn split(buf: &[u8], count: i32, len: i32) -> Vec<Box<[u8]>> {
-    let src = &buf[0..len as usize];
-    let mut out = Vec::with_capacity(count as usize);
-    for bytes in split_u8_nul(src) {
-        out.push(Box::from(bytes));
-    }
+    let len = len.max(0) as usize;
+    let out: Vec<Box<[u8]>> = buf[..len].split(|&b| b == 0).filter(|s| !s.is_empty()).map(Box::from).collect();
+    debug_assert_eq!(out.len(), count as usize, "split count mismatch: host reported {count} items but found {}", out.len());
     out
 }
 
-/// takes an array of u8 and splits on the NUL-Byte
-fn split_u8_nul(src: &[u8]) -> Vec<&[u8]> {
-    let mut out = Vec::new();
-    let mut start_index: usize = 0;
-    for (i, n) in src.iter().enumerate() {
-        if *n == b'\0' {
-            let t = &src[start_index..i];
-            out.push(t);
-            start_index = i + 1; // skip NUL byte
-        }
-    }
-    out
-}
 fn split_i64(n: i64) -> (i32, i32) {
     (
         (n >> 32) as i32, //upper count
@@ -209,38 +190,28 @@ mod tests {
     }
 
     #[test]
-    fn test_split_u8_nul_single() {
+    fn test_split_nul_single() {
         let data = b"hello\0";
-        let result = split_u8_nul(data);
+        let result = split(data, 1, data.len() as i32);
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0], b"hello");
+        assert_eq!(result[0].as_ref(), b"hello");
     }
 
     #[test]
-    fn test_split_u8_nul_multiple() {
+    fn test_split_nul_multiple() {
         let data = b"foo\0bar\0baz\0";
-        let result = split_u8_nul(data);
-        assert_eq!(result.len(), 3);
-        assert_eq!(result[0], b"foo");
-        assert_eq!(result[1], b"bar");
-        assert_eq!(result[2], b"baz");
-    }
-
-    #[test]
-    fn test_split_u8_nul_empty() {
-        let data = b"";
-        let result = split_u8_nul(data);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_split_function() {
-        let data = b"one\0two\0three\0";
         let result = split(data, 3, data.len() as i32);
         assert_eq!(result.len(), 3);
-        assert_eq!(result[0].as_ref(), b"one");
-        assert_eq!(result[1].as_ref(), b"two");
-        assert_eq!(result[2].as_ref(), b"three");
+        assert_eq!(result[0].as_ref(), b"foo");
+        assert_eq!(result[1].as_ref(), b"bar");
+        assert_eq!(result[2].as_ref(), b"baz");
+    }
+
+    #[test]
+    fn test_split_nul_empty() {
+        let data = b"";
+        let result = split(data, 0, data.len() as i32);
+        assert!(result.is_empty());
     }
 
     #[test]
@@ -405,5 +376,13 @@ mod tests {
 
         // Reset overflow mode
         ffi::mock::set_config_overflow_mode(false);
+    }
+
+    #[test]
+    #[should_panic(expected = "split count mismatch")]
+    fn test_split_count_mismatch() {
+        // count=5 but data only contains 3 items → debug_assert fires
+        let data = b"one\0two\0three\0";
+        split(data, 5, data.len() as i32);
     }
 }

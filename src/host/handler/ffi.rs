@@ -14,23 +14,23 @@
 unsafe extern "C" {
     pub(crate) unsafe fn log(level: i32, buf: *const u8, len: i32);
     pub(crate) unsafe fn log_enabled(level: i32) -> i32;
-    pub(crate) unsafe fn get_config(buf: *const u8, buf_limit: i32) -> i32;
-    pub(crate) unsafe fn get_method(buf: *const u8, buf_limit: i32) -> i32;
+    pub(crate) unsafe fn get_config(buf: *mut u8, buf_limit: i32) -> i32;
+    pub(crate) unsafe fn get_method(buf: *mut u8, buf_limit: i32) -> i32;
     pub(crate) unsafe fn set_method(method: *const u8, len: i32);
-    pub(crate) unsafe fn get_uri(buf: *const u8, buf_limit: i32) -> i32;
+    pub(crate) unsafe fn get_uri(buf: *mut u8, buf_limit: i32) -> i32;
     pub(crate) unsafe fn set_uri(uri: *const u8, len: i32);
-    pub(crate) unsafe fn get_protocol_version(buf: *const u8, buf_limit: i32) -> i32;
+    pub(crate) unsafe fn get_protocol_version(buf: *mut u8, buf_limit: i32) -> i32;
     pub(crate) unsafe fn add_header_value(kind: i32, name: *const u8, name_len: i32, value: *const u8, value_len: i32);
     pub(crate) unsafe fn set_header_value(kind: i32, name: *const u8, name_len: i32, value: *const u8, value_len: i32);
     pub(crate) unsafe fn remove_header(kind: i32, name: *const u8, len: i32);
-    pub(crate) unsafe fn get_header_names(kind: i32, buf: *const u8, buf_limit: i32) -> i64;
-    pub(crate) unsafe fn get_header_values(kind: i32, name: *const u8, len: i32, buf: *const u8, buf_limit: i32) -> i64;
-    pub(crate) unsafe fn read_body(kind: i32, buf: *const u8, buf_limit: i32) -> i64;
+    pub(crate) unsafe fn get_header_names(kind: i32, buf: *mut u8, buf_limit: i32) -> i64;
+    pub(crate) unsafe fn get_header_values(kind: i32, name: *const u8, len: i32, buf: *mut u8, buf_limit: i32) -> i64;
+    pub(crate) unsafe fn read_body(kind: i32, buf: *mut u8, buf_limit: i32) -> i64;
     pub(crate) unsafe fn write_body(kind: i32, body: *const u8, len: i32);
     pub(crate) unsafe fn get_status_code() -> i32;
     pub(crate) unsafe fn set_status_code(code: i32);
     pub(crate) unsafe fn enable_features(feature: i32) -> i32;
-    pub(crate) unsafe fn get_source_addr(buf: *const u8, buf_limit: i32) -> i32;
+    pub(crate) unsafe fn get_source_addr(buf: *mut u8, buf_limit: i32) -> i32;
 }
 
 // =============================================================================
@@ -58,11 +58,10 @@ pub(crate) mod mock {
 
     /// Copy bytes from source to destination buffer.
     /// Returns the number of bytes copied (limited by buf_limit).
-    fn copy_to_buf(src: &[u8], buf: *const u8, buf_limit: i32) -> i32 {
-        let dst = buf as *mut u8;
+    fn copy_to_buf(src: &[u8], buf: *mut u8, buf_limit: i32) -> i32 {
         let limit = buf_limit as usize;
         let len = src.len().min(limit);
-        unsafe { ptr::copy_nonoverlapping(src.as_ptr(), dst, len) };
+        unsafe { ptr::copy_nonoverlapping(src.as_ptr(), buf, len) };
         len as i32
     }
 
@@ -95,7 +94,7 @@ pub(crate) mod mock {
 
     /// Returns config data.
     /// When CONFIG_OVERFLOW_MODE is enabled, simulates buffer overflow.
-    pub(crate) unsafe fn get_config(buf: *const u8, buf_limit: i32) -> i32 {
+    pub(crate) unsafe fn get_config(buf: *mut u8, buf_limit: i32) -> i32 {
         let overflow_mode = CONFIG_OVERFLOW_MODE.with(|f| f.get());
 
         if overflow_mode {
@@ -119,7 +118,7 @@ pub(crate) mod mock {
     // Request Method
     // -------------------------------------------------------------------------
 
-    pub(crate) unsafe fn get_method(buf: *const u8, buf_limit: i32) -> i32 {
+    pub(crate) unsafe fn get_method(buf: *mut u8, buf_limit: i32) -> i32 {
         copy_to_buf(b"GET", buf, buf_limit)
     }
 
@@ -131,7 +130,7 @@ pub(crate) mod mock {
     // Request URI
     // -------------------------------------------------------------------------
 
-    pub(crate) unsafe fn get_uri(buf: *const u8, buf_limit: i32) -> i32 {
+    pub(crate) unsafe fn get_uri(buf: *mut u8, buf_limit: i32) -> i32 {
         copy_to_buf(b"https://test", buf, buf_limit)
     }
 
@@ -143,7 +142,7 @@ pub(crate) mod mock {
     // Protocol Version
     // -------------------------------------------------------------------------
 
-    pub(crate) unsafe fn get_protocol_version(buf: *const u8, buf_limit: i32) -> i32 {
+    pub(crate) unsafe fn get_protocol_version(buf: *mut u8, buf_limit: i32) -> i32 {
         copy_to_buf(b"HTTP/2.0", buf, buf_limit)
     }
 
@@ -167,7 +166,7 @@ pub(crate) mod mock {
     /// For kind=98 (duplicate test), returns duplicate header names
     /// For kind=99 (overflow test), returns data larger than buffer
     /// Return value: count in upper 32 bits, length in lower 32 bits
-    pub(crate) unsafe fn get_header_names(kind: i32, buf: *const u8, buf_limit: i32) -> i64 {
+    pub(crate) unsafe fn get_header_names(kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
         // kind=98 triggers duplicate header name test
         if kind == 98 {
             // Return duplicate header names: X-DUP appears twice
@@ -205,7 +204,7 @@ pub(crate) mod mock {
     /// - X-OVERFLOW: triggers overflow test (kind=99)
     ///
     /// Return value: count in upper 32 bits, length in lower 32 bits
-    pub(crate) unsafe fn get_header_values(kind: i32, name: *const u8, name_len: i32, buf: *const u8, buf_limit: i32) -> i64 {
+    pub(crate) unsafe fn get_header_values(kind: i32, name: *const u8, name_len: i32, buf: *mut u8, buf_limit: i32) -> i64 {
         let name_slice = unsafe { std::slice::from_raw_parts(name, name_len as usize) };
 
         // kind=98 triggers duplicate header value test
@@ -248,7 +247,7 @@ pub(crate) mod mock {
 
     /// Returns mock body content with EOF flag set.
     /// Return value: EOF (1) in upper 32 bits, length in lower 32 bits
-    pub(crate) unsafe fn read_body(_kind: i32, buf: *const u8, buf_limit: i32) -> i64 {
+    pub(crate) unsafe fn read_body(_kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
         let len = copy_to_buf(b"<html><body>test</body>", buf, buf_limit);
         (1i64 << 32) | (len as i64)
     }
@@ -281,7 +280,7 @@ pub(crate) mod mock {
     // Source Address
     // -------------------------------------------------------------------------
 
-    pub(crate) unsafe fn get_source_addr(buf: *const u8, buf_limit: i32) -> i32 {
+    pub(crate) unsafe fn get_source_addr(buf: *mut u8, buf_limit: i32) -> i32 {
         copy_to_buf(b"192.168.1.1", buf, buf_limit)
     }
 }
