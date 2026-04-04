@@ -211,8 +211,7 @@ pub(crate) mod mock {
         if kind == 98 {
             match name_slice {
                 b"X-DUP" => (1i64 << 32) | copy_to_buf(b"dup-value\0", buf, buf_limit) as i64,
-                b"X-OTHER" => (1i64 << 32) | copy_to_buf(b"other-value\0", buf, buf_limit) as i64,
-                _ => 0i64,
+                _ => (1i64 << 32) | copy_to_buf(b"other-value\0", buf, buf_limit) as i64,
             }
         // kind=99 with X-OVERFLOW triggers overflow test
         } else if kind == 99 && name_slice == b"X-OVERFLOW" {
@@ -246,10 +245,18 @@ pub(crate) mod mock {
     // -------------------------------------------------------------------------
 
     /// Returns mock body content with EOF flag set.
+    /// For kind=99, returns a full buffer of data without EOF to simulate an oversized body.
     /// Return value: EOF (1) in upper 32 bits, length in lower 32 bits
-    pub(crate) unsafe fn read_body(_kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
-        let len = copy_to_buf(b"<html><body>test</body>", buf, buf_limit);
-        (1i64 << 32) | (len as i64)
+    pub(crate) unsafe fn read_body(kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
+        if kind == 99 {
+            // Fill entire buffer with 'A', never set EOF
+            let data = vec![b'A'; buf_limit as usize];
+            let len = copy_to_buf(&data, buf, buf_limit);
+            len as i64
+        } else {
+            let len = copy_to_buf(b"<html><body>test</body>", buf, buf_limit);
+            (1i64 << 32) | (len as i64)
+        }
     }
 
     pub(crate) unsafe fn write_body(_kind: i32, _body: *const u8, _len: i32) {

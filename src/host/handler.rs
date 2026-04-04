@@ -385,4 +385,12 @@ mod tests {
         let data = b"one\0two\0three\0";
         split(data, 5, data.len() as i32);
     }
+
+    #[test]
+    fn test_body_max_size_limit() {
+        // kind=99 returns full buffer chunks without EOF
+        let content = body(99);
+        assert!(content.len() >= MAX_BODY_SIZE);
+        assert!(content.iter().all(|&b| b == b'A'));
+    }
 }
