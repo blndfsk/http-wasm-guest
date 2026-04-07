@@ -62,22 +62,30 @@ impl HostLogger {
         set_global_logger(Level::Info)
     }
 }
+
 fn set_global_logger(level: Level) -> Result<(), SetLoggerError> {
     log::set_max_level(max_level(level.to_level_filter()));
     log::set_logger(&LOGGER)
 }
-/// Determine the max_log_level as configured by the host
-/// If the log-level is more restrictive on the host as the plugin tries to configure,
-/// the level is decremented until an enabled level is found.
-fn max_level(mut level_filter: LevelFilter) -> LevelFilter {
-    loop {
-        if host::log::enabled(level_filter.to_level().map_or_else(|| -3, map_to_host)) {
-            return level_filter;
-        } else {
-            level_filter = level_filter.decrement_severity();
-        }
-    }
+
+/// Determine the max_log_level as configured by the host.
+/// If the log-level is more restrictive on the host than the plugin tries to configure,
+/// the level is decremented until an enabled level is found or Off is reached.
+fn max_level(level_filter: LevelFilter) -> LevelFilter {
+    max_level_with(level_filter, |level| host::log::enabled(map_to_host(level)))
 }
+
+/// Core max-level selection logic parameterized by a host enable-check.
+fn max_level_with(mut level_filter: LevelFilter, is_enabled: impl Fn(Level) -> bool) -> LevelFilter {
+    while let Some(level) = level_filter.to_level() {
+        if is_enabled(level) {
+            return level_filter;
+        }
+        level_filter = level_filter.decrement_severity();
+    }
+    LevelFilter::Off
+}
+
 /// Map a Rust `log::Level` to the host severity code.
 ///
 /// The mapping is defined by `LVL` and must stay consistent with the host.
@@ -90,16 +98,9 @@ fn map_to_host(level: Level) -> i32 {
         Level::Trace => -2,
     }
 }
+
 fn host_level(md: &Metadata) -> i32 {
     map_to_host(md.level())
-    // match md.level() {
-    //     Level::Error => match md.target() {
-    //         "panic" => 4,
-    //         "fatal" => 3,
-    //         _ => map_to_host(md.level()),
-    //     },
-    //     _ => map_to_host(md.level()),
-    // }
 }
 
 #[cfg(test)]
@@ -230,6 +231,24 @@ mod tests {
         let level = max_level(LevelFilter::Trace);
         // Should decrement to a lower severity level
         assert!(level < LevelFilter::Trace);
+    }
+
+    #[test]
+    fn test_max_level_off_stays_off() {
+        // Off is the terminal state for level reduction and should return immediately.
+        assert_eq!(max_level(LevelFilter::Off), LevelFilter::Off);
+    }
+
+    #[test]
+    fn test_max_level_returns_off_when_host_disables_everything() {
+        let level = max_level_with(LevelFilter::Trace, |_| false);
+        assert_eq!(level, LevelFilter::Off);
+    }
+
+    #[test]
+    fn test_max_level_stops_at_first_enabled_level() {
+        let level = max_level_with(LevelFilter::Trace, |level| matches!(level, Level::Warn | Level::Error));
+        assert_eq!(level, LevelFilter::Warn);
     }
 
     #[test]
