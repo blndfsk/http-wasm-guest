@@ -1,3 +1,14 @@
+## v0.10.3
+
+### Bug Fixes
+- Fix infinite loop in host logger setup. 
+
+### Testing & Safety
+- Add test for body max size limit and mock oversized body in FFI.
+
+### CI/CD
+- Ignore docs and markdown files in CI triggers.
+
 ## v0.10.2
 
 No API changes. This release focuses on robustness and correctness of the internal FFI layer and memory handling.

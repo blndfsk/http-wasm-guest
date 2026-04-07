@@ -85,7 +85,7 @@ jobs:
     if: needs.verify_tag_matches_cargo.outputs.should_publish == 'true'
     steps:
       - name: Checkout code at release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.release.tag_name }}
           fetch-depth: 0

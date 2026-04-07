@@ -39,5 +39,8 @@ jobs:
       - name: Run tests
         run: cargo test --lib -- --test-threads=1
 
+      - name: Run doctests
+        run: cargo test --doc -- --test-threads=1
+
       - name: Run clippy
         run: cargo clippy --all-targets --all-features
