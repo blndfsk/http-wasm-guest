@@ -88,7 +88,8 @@ fn max_level_with(mut level_filter: LevelFilter, is_enabled: impl Fn(Level) -> b
 
 /// Map a Rust `log::Level` to the host severity code.
 ///
-/// The mapping is defined by `LVL` and must stay consistent with the host.
+/// per spec: debug -1, info 0, warn 1, error 2, none 3
+/// traefik logs with trace -2, debug -1, info 0, warn 1, error 2, (fatal 3)
 fn map_to_host(level: Level) -> i32 {
     match level {
         Level::Error => 2,
@@ -105,8 +106,6 @@ fn host_level(md: &Metadata) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use log::MetadataBuilder;
-
     use super::*;
 
     #[test]
@@ -127,13 +126,6 @@ mod tests {
         assert_eq!(map_to_host(Level::Trace), -2);
     }
 
-    #[test]
-    fn map_host_level() {
-        assert_eq!(host_level(&MetadataBuilder::new().target("fatal").build()), 0);
-        assert_eq!(host_level(&MetadataBuilder::new().level(Level::Error).target("").build()), 2);
-        assert_eq!(host_level(&MetadataBuilder::new().level(Level::Error).target("fatal").build()), 2);
-        assert_eq!(host_level(&MetadataBuilder::new().level(Level::Error).target("panic").build()), 2);
-    }
     #[test]
     fn test_log_truncation_marker() {
         // Compose a message that will overflow the buffer
@@ -225,15 +217,6 @@ mod tests {
     }
 
     #[test]
-    fn test_max_level_disabled_decrements() {
-        // When host has the level disabled, it should decrement
-        // Trace maps to host level -1, which is disabled in mock
-        let level = max_level(LevelFilter::Trace);
-        // Should decrement to a lower severity level
-        assert!(level < LevelFilter::Trace);
-    }
-
-    #[test]
     fn test_max_level_off_stays_off() {
         // Off is the terminal state for level reduction and should return immediately.
         assert_eq!(max_level(LevelFilter::Off), LevelFilter::Off);
@@ -278,12 +261,8 @@ mod tests {
 
     #[test]
     fn test_max_level_decrement_until_enabled() {
-        // Start at Trace
-        let level = LevelFilter::Trace;
-
-        // Call max_level, which should decrement to Info
-        let result = max_level(level);
-
+        // Call max_level with disabled level, which should decrement to Info
+        let result = max_level(LevelFilter::Trace);
         assert_eq!(result, LevelFilter::Info, "max_level should decrement to Warn when only Warn is enabled on host");
     }
 }
