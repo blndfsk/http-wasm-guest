@@ -215,6 +215,13 @@ mod tests {
     }
 
     #[test]
+    fn test_split_nul_empty_elem() {
+        let data = b"\0test1\0\0test2\0";
+        let result = split(data, 2, data.len() as i32);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
     fn test_body_read() {
         // Test reading body - mock returns HTML content with EOF
         let content = body(0);
@@ -336,46 +343,49 @@ mod tests {
     }
 
     // =========================================================================
-    // Buffer Overflow Tests
+    // Buffer Overflow / Retry Tests
     // =========================================================================
 
     #[test]
-    fn test_header_names_overflow() {
-        // kind=99 triggers overflow simulation in mock
-        // First call returns size > buffer (2048), second call provides data
-        let names = header_names(99);
-        // Should have 100 headers from the overflow mock
-        assert_eq!(names.len(), 100);
-        // Verify first header name format
-        assert!(names[0].starts_with(b"X-Header-Name-Overflow-"));
+    fn test_read_buf_overflow() {
+        let large_data: Vec<u8> = (0..3000).map(|i| b'A' + (i % 26) as u8).collect();
+        let large_data_clone = large_data.clone();
+        let result = read_buf(|buf, limit| {
+            let needed = large_data_clone.len() as i32;
+            if limit < needed {
+                // First call: report that we need more space
+                needed
+            } else {
+                // Second call: write the data
+                unsafe { std::ptr::copy_nonoverlapping(large_data_clone.as_ptr(), buf, large_data_clone.len()) };
+                needed
+            }
+        });
+        assert_eq!(result.len(), 3000);
+        assert_eq!(result.as_ref(), large_data.as_slice());
     }
 
     #[test]
-    fn test_header_values_overflow() {
-        // kind=99 with X-OVERFLOW triggers overflow simulation
-        // Data exceeds 2048 byte buffer
-        let values = header_values(99, b"X-OVERFLOW");
-        // Should have 100 values from the overflow mock
-        assert_eq!(values.len(), 100);
-        // Verify value format
-        assert!(values[0].starts_with(b"overflow-header-value-"));
-    }
-
-    #[test]
-    fn test_get_config_overflow() {
-        // Enable overflow mode for this test
-        ffi::mock::set_config_overflow_mode(true);
-
-        // This should trigger the overflow branch in get_config
-        let config = get_config();
-
-        // Verify we got the large config data
-        assert!(config.len() > 2048);
-        let config_str = std::str::from_utf8(&config).unwrap();
-        assert!(config_str.contains("overflow_test"));
-
-        // Reset overflow mode
-        ffi::mock::set_config_overflow_mode(false);
+    fn test_read_buf_multi_overflow() {
+        // Build NUL-delimited data larger than 2048-byte shared buffer
+        let mut data = Vec::new();
+        let count = 120;
+        for i in 0..count {
+            data.extend_from_slice(format!("overflow-item-{:04}\0", i).as_bytes());
+        }
+        let data_clone = data.clone();
+        let result = read_buf_multi(|buf, limit| {
+            let needed = data_clone.len() as i32;
+            if limit < needed {
+                (count as i64) << 32 | (needed as i64)
+            } else {
+                unsafe { std::ptr::copy_nonoverlapping(data_clone.as_ptr(), buf, data_clone.len()) };
+                (count as i64) << 32 | (needed as i64)
+            }
+        });
+        assert_eq!(result.len(), count);
+        assert_eq!(result[0].as_ref(), b"overflow-item-0000");
+        assert_eq!(result[119].as_ref(), b"overflow-item-0119");
     }
 
     #[test]
