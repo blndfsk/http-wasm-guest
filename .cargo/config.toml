@@ -1,8 +1,2 @@
-# This crate uses `SyncCell` (mutable statics without synchronisation),
-# which is sound in single-threaded WASM guests but requires tests to
-# run sequentially to avoid data races in the test harness.
-[env]
-RUST_TEST_THREADS = "1"
-
 [alias]
-nt = "nextest run --lib --test-threads=1 --all-features"
+nt = "nextest run --lib --all-features"

@@ -59,15 +59,6 @@ fn main() {
 
 ### Test
 
-> **Note:** This crate uses mutable statics (`SyncCell`) that are safe in
-> single-threaded WASM but require tests to run sequentially. The included
-> `.cargo/config.toml` sets `RUST_TEST_THREADS=1` automatically. If you run
-> tests manually, pass `--test-threads=1`:
->
-> ```shell
-> cargo test --lib -- --test-threads=1
-> ```
-
 #### Prerequisites
 
 To run the examples using the `run.sh` script, you will need the following tools and resources installed on your system:

@@ -26,4 +26,4 @@ jobs:
           components: miri
 
       - name: Run miri
-        run: cargo +nightly miri test --lib -- --test-threads=1
+        run: cargo +nightly miri test --lib

@@ -7,6 +7,7 @@
 //! call [`register`] to wire up your plugin entry points.
 
 use crate::host::{Request, Response};
+#[cfg(not(test))]
 use crate::memory::SyncCell;
 
 /// Host interface for requests, responses, logging, and feature management.
@@ -39,37 +40,60 @@ pub trait Guest {
     fn handle_response(&self, _req_ctx: i32, _request: &Request, _response: &Response, _is_error: bool) {}
 }
 
+#[cfg(not(test))]
 static GUEST: SyncCell<Option<Handler>> = SyncCell::new(None);
+
+#[cfg(test)]
+thread_local! {
+    static GUEST: std::cell::UnsafeCell<Option<Handler>> = const { std::cell::UnsafeCell::new(None) };
+}
+
+#[cfg(not(test))]
+fn with_guest<R>(f: impl FnOnce(&mut Option<Handler>) -> R) -> R {
+    // SAFETY: WASM guest is single-threaded.
+    let g = unsafe { &mut *GUEST.get() };
+    f(g)
+}
+
+#[cfg(test)]
+fn with_guest<R>(f: impl FnOnce(&mut Option<Handler>) -> R) -> R {
+    GUEST.with(|cell| {
+        // SAFETY: thread-local; no cross-thread aliasing.
+        let g = unsafe { &mut *cell.get() };
+        f(g)
+    })
+}
 
 /// Register a guest plugin implementation with the runtime.
 ///
 /// Call this once from your guest module initialization to install your
 /// [`Guest`] implementation. Subsequent calls are ignored.
 pub fn register<T: Guest + 'static>(guest: T) {
-    // SAFETY: WASM guest is single-threaded.
-    let guest_handler = unsafe { &mut *GUEST.get() };
-    if guest_handler.is_none() {
-        *guest_handler = Some(Handler { guest: Box::new(guest) });
-    }
+    with_guest(|g| {
+        if g.is_none() {
+            *g = Some(Handler { guest: Box::new(guest) });
+        }
+    });
 }
 
 #[unsafe(export_name = "handle_request")]
 fn http_request() -> i64 {
-    // SAFETY: WASM guest is single-threaded.
-    let (next, ctx_next) = match unsafe { &*GUEST.get() } {
-        Some(handler) => handler.guest.handle_request(&Request::new(), &Response::new()),
-        None => (true, 0),
-    };
-
-    if next { (ctx_next as i64) << 32 | 1 } else { 0 }
+    with_guest(|g| {
+        let (next, ctx_next) = match g {
+            Some(handler) => handler.guest.handle_request(&Request::new(), &Response::new()),
+            None => (true, 0),
+        };
+        if next { (ctx_next as i64) << 32 | 1 } else { 0 }
+    })
 }
 
 #[unsafe(export_name = "handle_response")]
 fn http_response(req_ctx: i32, is_error: i32) {
-    // SAFETY: WASM guest is single-threaded.
-    if let Some(handler) = unsafe { &*GUEST.get() } {
-        handler.guest.handle_response(req_ctx, &Request::new(), &Response::new(), is_error == 1)
-    };
+    with_guest(|g| {
+        if let Some(handler) = g {
+            handler.guest.handle_response(req_ctx, &Request::new(), &Response::new(), is_error == 1);
+        }
+    });
 }
 
 #[cfg(feature = "log")]

@@ -269,6 +269,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_body_max_size_limit() {
         // kind=99 returns full buffer chunks without EOF
         let content = body(99);

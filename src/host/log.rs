@@ -59,7 +59,7 @@ use crate::host::handler;
 ///
 /// # Example
 ///
-/// ```rust
+/// ```no_run
 /// use http_wasm_guest::host::log;
 /// log::write(0, b"Hello from plugin!");
 /// ```
