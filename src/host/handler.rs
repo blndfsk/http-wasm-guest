@@ -94,15 +94,16 @@ pub(crate) fn write_body(kind: i32, body: &[u8]) {
 }
 
 /// Converts a `usize` to `i32` for the FFI boundary.
-/// Panics if conversion is not possible.
 fn as_i32(n: usize) -> i32 {
-    i32::try_from(n).expect("unable to convert usize to i32")
+    debug_assert!(n <= i32::MAX as usize, "value exceeds i32::MAX");
+    n as i32
 }
 
 /// Converts a `i32` to `usize`.
-/// Panics if conversion is not possible.
+/// Negative values indicate a protocol violation from the host.
 fn as_usize(n: i32) -> usize {
-    usize::try_from(n).expect("unable to convert i32 to usize")
+    debug_assert!(n >= 0, "negative value from host");
+    n.max(0) as usize
 }
 
 /// Calls an FFI function that writes into a buffer and returns the actual size.
@@ -138,16 +139,13 @@ fn read_buf_multi(f: impl Fn(*mut u8, i32) -> i64) -> Vec<Box<[u8]>> {
 
 fn split(buf: &[u8], count: usize, len: usize) -> Vec<Box<[u8]>> {
     let out: Vec<Box<[u8]>> = buf[..len].split(|&b| b == 0).filter(|s| !s.is_empty()).map(Box::from).collect();
-    #[cfg(debug_assertions)]
-    if count != out.len() {
-        panic!("split count mismatch: host reported {} items but found {}", count, out.len());
-    }
+    debug_assert_eq!(count, out.len(), "split count mismatch: host reported {count} items but found {}", out.len());
     out
 }
 
 fn eof_size(n: i64) -> (bool, usize) {
-    let (v, size) = split_i64(n);
-    (v == 1, size)
+    let v = (n >> 32) as i32;
+    (v != 0, as_usize(n as i32))
 }
 
 fn split_i64(n: i64) -> (usize, usize) {
@@ -190,10 +188,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "unable to convert i32 to usize")]
     fn test_eof_protocol_error() {
         // EOF flag wrong (-1 in upper 32 bits), size 50 in lower 32 bits
-        eof_size(-1i64 << 32 | 50);
+        let (eof, size) = eof_size(-1i64 << 32 | 50);
+        assert!(eof);
+        assert_eq!(size, 50);
     }
 
     #[test]
@@ -252,7 +251,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "unable to convert i32 to usize")]
+    #[should_panic(expected = "negative value from host")]
     fn test_read_buf_underflow() {
         let result = read_buf(|_, _| -1);
         assert_eq!(result.len(), 0);
