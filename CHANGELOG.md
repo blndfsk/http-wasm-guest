@@ -3,6 +3,7 @@
 ### API-Breaking Changes
 
 - rename Header::values to entries
+- rename Header::get_all to values
 - remove unchecked UTF-8 conversion from Bytes
 
 ### Features

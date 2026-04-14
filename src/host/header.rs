@@ -11,7 +11,7 @@ pub struct Header(i32);
 impl Header {
     /// Create a header handle for a specific host-defined kind.
     ///
-    /// The `kind` value is provided by the host API to distinguish between
+    /// The `kind` value is used by the host API to distinguish between
     /// request and response headers.
     pub(crate) fn kind(kind: i32) -> Self {
         Self(kind)
@@ -36,7 +36,7 @@ impl Header {
     ///
     /// The `name` is matched by the host according to its header normalization
     /// rules (often case-insensitive).
-    pub fn get_all(&self, name: &[u8]) -> Vec<Bytes> {
+    pub fn values(&self, name: &[u8]) -> Vec<Bytes> {
         handler::header_values(self.0, name).into_iter().map(Bytes::from).collect()
     }
 
@@ -62,7 +62,7 @@ impl Header {
         let headers = self.names();
         let mut result: HashMap<Bytes, Vec<Bytes>> = HashMap::with_capacity(headers.len());
         for key in headers {
-            let mut values = self.get_all(&key);
+            let mut values = self.values(&key);
             match result.get_mut(&key) {
                 Some(val) => {
                     val.append(&mut values);
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn header_get_all_single_value() {
         let header = Header::kind(0);
-        let values = header.get_all(b"X-FOO");
+        let values = header.values(b"X-FOO");
         assert_eq!(values.len(), 1);
         assert_eq!(values[0].to_str().unwrap(), "test1");
     }
@@ -107,7 +107,7 @@ mod tests {
     fn header_get_all_multiple_values() {
         let header = Header::kind(0);
         // The mock has "x-bar" with values "test2" and "test3"
-        let values = header.get_all(b"x-bar");
+        let values = header.values(b"x-bar");
         assert_eq!(values.len(), 2);
         assert!(values.iter().any(|v| v.to_str().unwrap() == "test2"));
         assert!(values.iter().any(|v| v.to_str().unwrap() == "test3"));
@@ -158,7 +158,7 @@ mod tests {
     fn header_operations_with_bytes() {
         let header = Header::kind(0);
         let name = Bytes::from("x-bar");
-        let values = header.get_all(&name);
+        let values = header.values(&name);
         assert!(!values.is_empty());
     }
 
