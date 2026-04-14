@@ -11,7 +11,7 @@ impl Body {
     ///
     /// The `kind` value is provided by the host API to distinguish between
     /// request and response bodies.
-    pub fn kind(kind: i32) -> Self {
+    pub(crate) fn kind(kind: i32) -> Self {
         Self(kind)
     }
 

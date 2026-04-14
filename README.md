@@ -13,15 +13,15 @@ It is designed for writing Traefik plugins in Rust, and works with any http-wasm
 ## Design Goals
 
 - Not opinionated, the focus is to provide a very thin wrapper around the host functions.
-- Minimal dependency footprint: only the `log` crate is required at runtime.
+- Minimal dependency footprint: only the `log` crate is used at runtime (can be deactivated)
 - Low-level `Byte` abstraction to enable all use-cases.
-- Memory-efficient data handling to suit constrained Wasm environments.
+- Memory-efficient data handling suitable for constrained Wasm environments.
 
 ## Caveat
 
 To avoid heap allocations on hot paths (logging, reading from the host), buffers are preallocated.
 For reading large payloads, an overflow path is implemented that allocates the needed buffer on the heap.
-Log messages are formatted into a fixed-size 4096-byte static buffer; messages exceeding this limit will be truncated.
+Log messages are formatted into a fixed-size 2048-byte static buffer; messages exceeding this limit will be truncated.
 
 ## Credits
 

@@ -73,7 +73,7 @@ pub(crate) mod mock {
 
     /// Returns config data.
     pub(crate) unsafe fn get_config(buf: *mut u8, buf_limit: i32) -> i32 {
-        copy_to_buf(br#"{ "config" : "test1",}"#, buf, buf_limit)
+        copy_to_buf(br#"{ "config" : "test1"}"#, buf, buf_limit)
     }
 
     // -------------------------------------------------------------------------

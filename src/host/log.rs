@@ -52,7 +52,7 @@ use crate::host::handler;
 ///
 /// # Arguments
 ///
-/// * `level` - The severity code to use for the log message. This should match the host's expected log level mapping.
+/// * `level` - The severity code to use for the log message. Valid values are: debug=−1, info=0, warn=1, error=2
 /// * `message` - The log message as a byte slice. Messages exceeding the host's buffer limit may be truncated.
 ///
 /// This function is typically called internally by the logger implementation, but can be used directly to send custom log messages to the host.

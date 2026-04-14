@@ -4,7 +4,7 @@ pub struct Response {
     header: Header,
     body: Body,
 }
-static KIND_RES: i32 = 1;
+const KIND_RES: i32 = 1;
 
 impl Response {
     /// Creates a new `Response` instance with header and body handles.
@@ -17,6 +17,8 @@ impl Response {
     }
 
     /// Set the response status code.
+    ///
+    /// To call this in `handle_response` requires `feature::BufferResponse`.
     pub fn set_status(&self, code: i32) {
         handler::set_status_code(code);
     }

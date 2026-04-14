@@ -4,7 +4,7 @@ pub struct Request {
     header: Header,
     body: Body,
 }
-static KIND_REQ: i32 = 0;
+const KIND_REQ: i32 = 0;
 
 impl Request {
     /// Creates a new `Request` instance with header and body handles.

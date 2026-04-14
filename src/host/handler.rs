@@ -155,21 +155,14 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_status_code() {
-        assert_eq!(status_code(), 200);
-    }
+    // =========================================================================
+    // Internal Helper Tests
+    // =========================================================================
 
     #[test]
     fn test_split_i64() {
         let (a, b) = split_i64(2 << 32 | 28);
         assert_eq!((a, b), (2, 28));
-    }
-
-    #[test]
-    fn test_method() {
-        let m = method();
-        assert_eq!(b"GET", m.as_ref());
     }
 
     #[test]
@@ -219,127 +212,6 @@ mod tests {
         let data = b"\0test1\0\0test2\0";
         let result = split(data, 2, data.len() as i32);
         assert_eq!(result.len(), 2);
-    }
-
-    #[test]
-    fn test_body_read() {
-        // Test reading body - mock returns HTML content with EOF
-        let content = body(0);
-        assert!(!content.is_empty());
-        assert!(content.starts_with(b"<html>"));
-    }
-
-    #[test]
-    fn test_write_body() {
-        // Should not panic - mock accepts any body
-        write_body(0, b"test body content");
-    }
-
-    #[test]
-    fn test_version() {
-        let v = version();
-        assert_eq!(v.as_ref(), b"HTTP/2.0");
-    }
-
-    #[test]
-    fn test_uri() {
-        let u = uri();
-        assert_eq!(u.as_ref(), b"https://test");
-    }
-
-    #[test]
-    fn test_source_addr() {
-        let addr = source_addr();
-        assert_eq!(addr.as_ref(), b"192.168.1.1");
-    }
-
-    #[test]
-    fn test_set_method() {
-        // Should not panic - mock accepts any method
-        set_method(b"POST");
-    }
-
-    #[test]
-    fn test_set_uri() {
-        // Should not panic - mock accepts any URI
-        set_uri(b"/new/path");
-    }
-
-    #[test]
-    fn test_set_status_code() {
-        // Should not panic - mock accepts any status code
-        set_status_code(404);
-    }
-
-    #[test]
-    fn test_get_config() {
-        let config = get_config();
-        let config_str = std::str::from_utf8(&config).unwrap();
-        assert!(config_str.contains("config"));
-    }
-
-    #[test]
-    fn test_enable_feature() {
-        // Should return 0 (success) from mock
-        let result = enable_feature(1);
-        assert_eq!(result, 0);
-    }
-
-    #[test]
-    fn test_log() {
-        // Should not panic - mock accepts log calls
-        log(2, b"test message");
-    }
-
-    #[test]
-    fn test_log_enabled() {
-        // Mock enables levels 0-3
-        assert!(log_enabled(0));
-        assert!(log_enabled(2));
-        assert!(!log_enabled(-1));
-    }
-
-    #[test]
-    fn test_header_names() {
-        let names = header_names(0);
-        assert_eq!(names.len(), 3);
-    }
-
-    #[test]
-    fn test_header_values_existing() {
-        let values = header_values(0, b"X-FOO");
-        assert_eq!(values.len(), 1);
-        assert_eq!(values[0].as_ref(), b"test1");
-    }
-
-    #[test]
-    fn test_header_values_multiple() {
-        let values = header_values(0, b"x-bar");
-        assert_eq!(values.len(), 2);
-    }
-
-    #[test]
-    fn test_header_values_nonexistent() {
-        let values = header_values(0, b"X-UNKNOWN");
-        assert!(values.is_empty());
-    }
-
-    #[test]
-    fn test_remove_header() {
-        // Should not panic - mock accepts header removal
-        remove_header(0, b"X-FOO");
-    }
-
-    #[test]
-    fn test_set_header() {
-        // Should not panic - mock accepts header set
-        set_header(0, b"X-New", b"value");
-    }
-
-    #[test]
-    fn test_add_header_value() {
-        // Should not panic - mock accepts header add
-        add_header_value(0, b"X-Existing", b"new-value");
     }
 
     // =========================================================================

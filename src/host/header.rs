@@ -13,7 +13,7 @@ impl Header {
     ///
     /// The `kind` value is provided by the host API to distinguish between
     /// request and response headers.
-    pub fn kind(kind: i32) -> Self {
+    pub(crate) fn kind(kind: i32) -> Self {
         Self(kind)
     }
 
@@ -58,7 +58,7 @@ impl Header {
     /// Return all headers as a map of names to value lists.
     ///
     /// This collects all names and then queries each set of values.
-    pub fn values(&self) -> HashMap<Bytes, Vec<Bytes>> {
+    pub fn entries(&self) -> HashMap<Bytes, Vec<Bytes>> {
         let headers = self.names();
         let mut result: HashMap<Bytes, Vec<Bytes>> = HashMap::with_capacity(headers.len());
         for key in headers {
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn header_values_map() {
         let header = Header::kind(0);
-        let values_map = header.values();
+        let values_map = header.entries();
         // Should have 3 distinct header names
         assert_eq!(values_map.len(), 3);
         // X-FOO should have 1 value
@@ -167,7 +167,7 @@ mod tests {
         // kind=98 triggers duplicate header name test in mock
         // Returns: X-DUP, X-OTHER, X-DUP (duplicate name)
         let header = Header::kind(98);
-        let values_map = header.values();
+        let values_map = header.entries();
 
         // Should have 2 distinct header names (duplicates merged)
         assert_eq!(values_map.len(), 2);
