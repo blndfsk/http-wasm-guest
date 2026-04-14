@@ -1,7 +1,11 @@
 use crate::memory;
+
 mod ffi;
 
-const MAX_BODY_SIZE: usize = 16 * 1024 * 1024; // 16 MB
+#[cfg(test)]
+pub(crate) mod test;
+
+const MAX_ALLOC_SIZE: usize = 16 * 1024 * 1024; // 16 MB
 
 pub(crate) fn log(level: i32, message: &[u8]) {
     unsafe { ffi::log(level, message.as_ptr(), as_i32(message.len())) };
@@ -73,14 +77,15 @@ pub(crate) fn set_status_code(code: i32) {
 
 pub(crate) fn body(kind: i32) -> Box<[u8]> {
     let mut out = Vec::new();
-    let max_iterations = MAX_BODY_SIZE / memory::with_buffer(|b| b.capacity());
+    let max_iterations = MAX_ALLOC_SIZE / memory::with_buffer(|b| b.capacity());
     for _ in 0..max_iterations {
         let eof = memory::with_buffer(|buffer| {
             let (eof, size) = eof_size(unsafe { ffi::read_body(kind, buffer.as_mut_ptr(), as_i32(buffer.capacity())) });
+            debug_assert!(size <= buffer.capacity(), "host returned size {size} exceeds buffer capacity {}", buffer.capacity());
             out.extend_from_slice(buffer.as_subslice(size));
             eof
         });
-        if eof || out.len() >= MAX_BODY_SIZE {
+        if eof || out.len() >= MAX_ALLOC_SIZE {
             break;
         }
     }
@@ -93,14 +98,15 @@ pub(crate) fn write_body(kind: i32, body: &[u8]) {
     }
 }
 
-/// Converts a `usize` to `i32` for the FFI boundary.
+/// Converts a `usize` to `i32` for the FFI boundary. In debug builds, panics on values
+/// larger than i32::MAX, which is impossible to trigger in wasm environment
 fn as_i32(n: usize) -> i32 {
     debug_assert!(n <= i32::MAX as usize, "value exceeds i32::MAX");
     n as i32
 }
 
-/// Converts a `i32` to `usize`.
-/// Negative values indicate a protocol violation from the host.
+/// Validates i32→usize conversion. In debug builds, panics on negative values
+/// indicating host protocol violations. In release builds, clamps to 0.
 fn as_usize(n: i32) -> usize {
     debug_assert!(n >= 0, "negative value from host");
     n.max(0) as usize
@@ -130,7 +136,8 @@ fn read_buf_multi(f: impl Fn(*mut u8, i32) -> i64) -> Vec<Box<[u8]>> {
         if len <= buffer.capacity() {
             return split(buffer.as_slice(), count, len);
         }
-
+        debug_assert!(len <= MAX_ALLOC_SIZE, "host response too large: {len} bytes (max {})", MAX_ALLOC_SIZE);
+        let len = len.min(MAX_ALLOC_SIZE);
         let mut buf = vec![0u8; len];
         let (count, len) = split_i64(f(buf.as_mut_ptr(), as_i32(len)));
         split(&buf, count, len)
@@ -189,7 +196,8 @@ mod tests {
 
     #[test]
     fn test_eof_protocol_error() {
-        // EOF flag wrong (-1 in upper 32 bits), size 50 in lower 32 bits
+        // Non-zero EOF flag (-1 in upper 32 bits) is treated as EOF, size 50 in lower 32 bits
+        // This demonstrates that any non-zero upper value triggers EOF, not just 1
         let (eof, size) = eof_size(-1i64 << 32 | 50);
         assert!(eof);
         assert_eq!(size, 50);
@@ -251,8 +259,16 @@ mod tests {
     }
 
     #[test]
+    #[cfg(debug_assertions)]
     #[should_panic(expected = "negative value from host")]
-    fn test_read_buf_underflow() {
+    fn test_read_buf_underflow_debug() {
+        let _result = read_buf(|_, _| -1);
+    }
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn test_read_buf_underflow_release() {
+        // In release, -1 becomes 0 via max(0)
         let result = read_buf(|_, _| -1);
         assert_eq!(result.len(), 0);
     }
@@ -281,6 +297,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(debug_assertions)]
     #[should_panic(expected = "split count mismatch: host reported 5 items but found 3")]
     fn test_split_count_mismatch() {
         // count=5 but data only contains 3 items → debug_assert fires
@@ -291,9 +308,9 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_body_max_size_limit() {
-        // kind=99 returns full buffer chunks without EOF
-        let content = body(99);
-        assert!(content.len() >= MAX_BODY_SIZE);
+        // TEST_KIND_OVERSIZED_BODY returns full buffer chunks without EOF
+        let content = body(test::kinds::OVERSIZED_BODY);
+        assert!(content.len() >= MAX_ALLOC_SIZE);
         assert!(content.iter().all(|&b| b == b'A'));
     }
 }

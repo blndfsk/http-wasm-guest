@@ -164,9 +164,9 @@ mod tests {
 
     #[test]
     fn header_values_map_with_duplicate_names() {
-        // kind=98 triggers duplicate header name test in mock
+        // DUPLICATE_HEADERS triggers duplicate header name test in mock
         // Returns: X-DUP, X-OTHER, X-DUP (duplicate name)
-        let header = Header::kind(98);
+        let header = Header::kind(handler::test::kinds::DUPLICATE_HEADERS);
         let values_map = header.entries();
 
         // Should have 2 distinct header names (duplicates merged)
