@@ -94,19 +94,15 @@ pub(crate) fn write_body(kind: i32, body: &[u8]) {
 }
 
 /// Converts a `usize` to `i32` for the FFI boundary.
-/// Panics instead of wrapping to negative values.
+/// Panics if conversion is not possible.
 fn as_i32(n: usize) -> i32 {
-    i32::try_from(n).expect("length exceeds i32::MAX")
+    i32::try_from(n).expect("unable to convert usize to i32")
 }
 
-/// Converts an FFI size to `usize`, logging an error on negative values.
+/// Converts a `i32` to `usize`.
+/// Panics if conversion is not possible.
 fn as_usize(n: i32) -> usize {
-    if n < 0 {
-        #[cfg(debug_assertions)]
-        log(3, b"host protocol error:expected non-negative size");
-        return 0;
-    }
-    n as usize
+    usize::try_from(n).expect("unable to convert i32 to usize")
 }
 
 /// Calls an FFI function that writes into a buffer and returns the actual size.
@@ -142,15 +138,16 @@ fn read_buf_multi(f: impl Fn(*mut u8, i32) -> i64) -> Vec<Box<[u8]>> {
 
 fn split(buf: &[u8], count: usize, len: usize) -> Vec<Box<[u8]>> {
     let out: Vec<Box<[u8]>> = buf[..len].split(|&b| b == 0).filter(|s| !s.is_empty()).map(Box::from).collect();
+    #[cfg(debug_assertions)]
     if count != out.len() {
-        log(3, format!("split count mismatch: host reported {} items but found {}", count, out.len()).as_bytes());
+        panic!("split count mismatch: host reported {} items but found {}", count, out.len());
     }
     out
 }
 
 fn eof_size(n: i64) -> (bool, usize) {
-    let u = (n >> 32) as i32;
-    (u == 1 || u < 0, as_usize(n as i32))
+    let (v, size) = split_i64(n);
+    (v == 1, size)
 }
 
 fn split_i64(n: i64) -> (usize, usize) {
@@ -191,13 +188,12 @@ mod tests {
         assert!(!eof);
         assert_eq!(size, 50);
     }
-    #[test]
 
+    #[test]
+    #[should_panic(expected = "unable to convert i32 to usize")]
     fn test_eof_protocol_error() {
         // EOF flag wrong (-1 in upper 32 bits), size 50 in lower 32 bits
-        let (eof, size) = eof_size(-1i64 << 32 | 50);
-        assert!(eof);
-        assert_eq!(size, 50);
+        eof_size(-1i64 << 32 | 50);
     }
 
     #[test]
@@ -256,6 +252,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "unable to convert i32 to usize")]
     fn test_read_buf_underflow() {
         let result = read_buf(|_, _| -1);
         assert_eq!(result.len(), 0);
@@ -285,6 +282,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "split count mismatch: host reported 5 items but found 3")]
     fn test_split_count_mismatch() {
         // count=5 but data only contains 3 items → debug_assert fires
         let data = b"one\0two\0three\0";

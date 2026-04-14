@@ -1,2 +1,2 @@
 [alias]
-nt = "nextest run --lib --all-features"
+nt = "nextest run --lib --all-features --no-fail-fast"
