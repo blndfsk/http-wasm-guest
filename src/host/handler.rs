@@ -77,7 +77,7 @@ pub(crate) fn body(kind: i32) -> Box<[u8]> {
     for _ in 0..max_iterations {
         let eof = memory::with_buffer(|buffer| {
             let (eof, size) = eof_size(unsafe { ffi::read_body(kind, buffer.as_mut_ptr(), as_i32(buffer.capacity())) });
-            out.extend_from_slice(buffer.as_subslice(size.max(0) as usize));
+            out.extend_from_slice(buffer.as_subslice(size));
             eof
         });
         if eof || out.len() >= MAX_BODY_SIZE {
@@ -99,16 +99,26 @@ fn as_i32(n: usize) -> i32 {
     i32::try_from(n).expect("length exceeds i32::MAX")
 }
 
+/// Converts an FFI size to `usize`, logging an error on negative values.
+fn as_usize(n: i32) -> usize {
+    if n < 0 {
+        #[cfg(debug_assertions)]
+        log(3, b"host protocol error:expected non-negative size");
+        return 0;
+    }
+    n as usize
+}
+
 /// Calls an FFI function that writes into a buffer and returns the actual size.
 /// If the data exceeds the shared buffer, a larger allocation is made and the call is retried.
 fn read_buf(f: impl Fn(*mut u8, i32) -> i32) -> Box<[u8]> {
     memory::with_buffer(|buffer| {
-        let size = f(buffer.as_mut_ptr(), as_i32(buffer.capacity())).max(0) as usize;
+        let size = as_usize(f(buffer.as_mut_ptr(), as_i32(buffer.capacity())));
         if size <= buffer.capacity() {
             return buffer.to_boxed_slice(size);
         }
         let mut buf = vec![0u8; size];
-        let length = f(buf.as_mut_ptr(), as_i32(size)).max(0) as usize;
+        let length = as_usize(f(buf.as_mut_ptr(), as_i32(size)));
         buf.truncate(length);
         buf.into_boxed_slice()
     })
@@ -120,34 +130,34 @@ fn read_buf(f: impl Fn(*mut u8, i32) -> i32) -> Box<[u8]> {
 fn read_buf_multi(f: impl Fn(*mut u8, i32) -> i64) -> Vec<Box<[u8]>> {
     memory::with_buffer(|buffer| {
         let (count, len) = split_i64(f(buffer.as_mut_ptr(), as_i32(buffer.capacity())));
-        let len = len.max(0);
-        if len as usize <= buffer.capacity() {
+        if len <= buffer.capacity() {
             return split(buffer.as_slice(), count, len);
         }
 
-        let mut buf = vec![0u8; len as usize];
-        let (count, len) = split_i64(f(buf.as_mut_ptr(), len));
+        let mut buf = vec![0u8; len];
+        let (count, len) = split_i64(f(buf.as_mut_ptr(), as_i32(len)));
         split(&buf, count, len)
     })
 }
 
-fn split(buf: &[u8], count: i32, len: i32) -> Vec<Box<[u8]>> {
-    let len = len.max(0) as usize;
+fn split(buf: &[u8], count: usize, len: usize) -> Vec<Box<[u8]>> {
     let out: Vec<Box<[u8]>> = buf[..len].split(|&b| b == 0).filter(|s| !s.is_empty()).map(Box::from).collect();
-    debug_assert_eq!(out.len(), count as usize, "split count mismatch: host reported {count} items but found {}", out.len());
+    if count != out.len() {
+        log(3, format!("split count mismatch: host reported {} items but found {}", count, out.len()).as_bytes());
+    }
     out
 }
 
-fn split_i64(n: i64) -> (i32, i32) {
-    (
-        (n >> 32) as i32, //upper count
-        n as i32,         //lower len
-    )
+fn eof_size(n: i64) -> (bool, usize) {
+    let u = (n >> 32) as i32;
+    (u == 1 || u < 0, as_usize(n as i32))
 }
 
-fn eof_size(n: i64) -> (bool, i32) {
-    let (v, size) = split_i64(n);
-    (v == 1, size)
+fn split_i64(n: i64) -> (usize, usize) {
+    (
+        as_usize((n >> 32) as i32), //upper count
+        as_usize(n as i32),         //lower len
+    )
 }
 
 #[cfg(test)]
@@ -181,11 +191,19 @@ mod tests {
         assert!(!eof);
         assert_eq!(size, 50);
     }
+    #[test]
+
+    fn test_eof_protocol_error() {
+        // EOF flag wrong (-1 in upper 32 bits), size 50 in lower 32 bits
+        let (eof, size) = eof_size(-1i64 << 32 | 50);
+        assert!(eof);
+        assert_eq!(size, 50);
+    }
 
     #[test]
     fn test_split_nul_single() {
         let data = b"hello\0";
-        let result = split(data, 1, data.len() as i32);
+        let result = split(data, 1, data.len());
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].as_ref(), b"hello");
     }
@@ -193,7 +211,7 @@ mod tests {
     #[test]
     fn test_split_nul_multiple() {
         let data = b"foo\0bar\0baz\0";
-        let result = split(data, 3, data.len() as i32);
+        let result = split(data, 3, data.len());
         assert_eq!(result.len(), 3);
         assert_eq!(result[0].as_ref(), b"foo");
         assert_eq!(result[1].as_ref(), b"bar");
@@ -203,14 +221,14 @@ mod tests {
     #[test]
     fn test_split_nul_empty() {
         let data = b"";
-        let result = split(data, 0, data.len() as i32);
+        let result = split(data, 0, data.len());
         assert!(result.is_empty());
     }
 
     #[test]
     fn test_split_nul_empty_elem() {
         let data = b"\0test1\0\0test2\0";
-        let result = split(data, 2, data.len() as i32);
+        let result = split(data, 2, data.len());
         assert_eq!(result.len(), 2);
     }
 
@@ -238,6 +256,12 @@ mod tests {
     }
 
     #[test]
+    fn test_read_buf_underflow() {
+        let result = read_buf(|_, _| -1);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
     fn test_read_buf_multi_overflow() {
         // Build NUL-delimited data larger than 2048-byte shared buffer
         let mut data = Vec::new();
@@ -261,11 +285,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "split count mismatch")]
     fn test_split_count_mismatch() {
         // count=5 but data only contains 3 items → debug_assert fires
         let data = b"one\0two\0three\0";
-        split(data, 5, data.len() as i32);
+        split(data, 5, data.len());
     }
 
     #[test]
