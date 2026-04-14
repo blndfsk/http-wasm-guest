@@ -3,7 +3,7 @@
 //! Use these flags to enable host-supported functionality such as buffering
 //! request/response bodies or accessing trailers. Combine multiple flags with
 //! bitwise OR and pass the result to `admin::enable`.
-use std::ops::BitOr;
+use std::ops::{BitOr, BitOrAssign};
 
 #[allow(non_upper_case_globals, non_snake_case)]
 /// Enables buffering of the entire request body before your handler is invoked.
@@ -42,10 +42,11 @@ pub const BufferResponse: Feature = Feature(2);
 /// - Not all hosts or upstream servers support trailers
 /// - Trailers are only applicable to chunked or streaming responses
 pub const Trailers: Feature = Feature(4);
-#[derive(Debug, PartialEq)]
+
 /// Bitflag wrapper used to configure host capabilities.
 ///
 /// Combine flags with `|` and pass the result to `admin::enable`.
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Feature(i32);
 
 impl From<Feature> for i32 {
@@ -61,6 +62,13 @@ impl BitOr for Feature {
         Feature(self.0 | rhs.0)
     }
 }
+
+impl BitOrAssign for Feature {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -84,6 +92,13 @@ mod tests {
     fn feature_combine_with_bitor() {
         let combined = BufferRequest | BufferResponse;
         assert_eq!(combined, Feature(3));
+    }
+
+    #[test]
+    fn feature_combine_with_bitorassign() {
+        let mut f = BufferRequest;
+        f |= BufferResponse;
+        assert_eq!(f, Feature(3));
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use std::{
     fmt::Display,
     ops::Deref,
-    str::{Utf8Error, from_utf8, from_utf8_unchecked},
+    str::{Utf8Error, from_utf8},
 };
 /// Owned container for binary data used throughout the API.
 ///
@@ -20,13 +20,6 @@ impl Bytes {
     /// valid UTF-8, an error is returned.
     pub fn to_str(&self) -> Result<&str, Utf8Error> {
         from_utf8(&self.0)
-    }
-    /// Returns the contents as UTF-8 without validation.
-    ///
-    /// This is a zero-copy view into the underlying bytes and assumes the data
-    /// is valid UTF-8. Use with care if the bytes may be invalid.
-    pub fn to_str_unchecked(&self) -> &str {
-        unsafe { from_utf8_unchecked(&self.0) }
     }
 }
 impl Deref for Bytes {
@@ -154,12 +147,6 @@ mod tests {
 
         assert!(set.contains(&b));
         assert_eq!(set.len(), 1);
-    }
-
-    #[test]
-    fn bytes_to_str_unchecked_valid() {
-        let valid = Bytes::from("valid utf8");
-        assert_eq!(valid.to_str_unchecked(), "valid utf8");
     }
 
     #[test]

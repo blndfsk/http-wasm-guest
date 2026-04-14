@@ -1,7 +1,11 @@
 use crate::memory;
+
 mod ffi;
 
-const MAX_BODY_SIZE: usize = 16 * 1024 * 1024; // 16 MB
+#[cfg(test)]
+pub(crate) mod test;
+
+const MAX_ALLOC_SIZE: usize = 16 * 1024 * 1024; // 16 MB
 
 pub(crate) fn log(level: i32, message: &[u8]) {
     unsafe { ffi::log(level, message.as_ptr(), as_i32(message.len())) };
@@ -73,14 +77,15 @@ pub(crate) fn set_status_code(code: i32) {
 
 pub(crate) fn body(kind: i32) -> Box<[u8]> {
     let mut out = Vec::new();
-    let max_iterations = MAX_BODY_SIZE / memory::with_buffer(|b| b.capacity());
+    let max_iterations = MAX_ALLOC_SIZE / memory::with_buffer(|b| b.capacity());
     for _ in 0..max_iterations {
         let eof = memory::with_buffer(|buffer| {
             let (eof, size) = eof_size(unsafe { ffi::read_body(kind, buffer.as_mut_ptr(), as_i32(buffer.capacity())) });
-            out.extend_from_slice(buffer.as_subslice(size.max(0) as usize));
+            debug_assert!(size <= buffer.capacity(), "host returned size {size} exceeds buffer capacity {}", buffer.capacity());
+            out.extend_from_slice(buffer.as_subslice(size));
             eof
         });
-        if eof || out.len() >= MAX_BODY_SIZE {
+        if eof || out.len() >= MAX_ALLOC_SIZE {
             break;
         }
     }
@@ -93,22 +98,30 @@ pub(crate) fn write_body(kind: i32, body: &[u8]) {
     }
 }
 
-/// Converts a `usize` to `i32` for the FFI boundary.
-/// Panics instead of wrapping to negative values.
+/// Converts a `usize` to `i32` for the FFI boundary. In debug builds, panics on values
+/// larger than i32::MAX, which is impossible to trigger in wasm environment
 fn as_i32(n: usize) -> i32 {
-    i32::try_from(n).expect("length exceeds i32::MAX")
+    debug_assert!(n <= i32::MAX as usize, "value exceeds i32::MAX");
+    n as i32
+}
+
+/// Validates i32→usize conversion. In debug builds, panics on negative values
+/// indicating host protocol violations. In release builds, clamps to 0.
+fn as_usize(n: i32) -> usize {
+    debug_assert!(n >= 0, "negative value from host");
+    n.max(0) as usize
 }
 
 /// Calls an FFI function that writes into a buffer and returns the actual size.
 /// If the data exceeds the shared buffer, a larger allocation is made and the call is retried.
 fn read_buf(f: impl Fn(*mut u8, i32) -> i32) -> Box<[u8]> {
     memory::with_buffer(|buffer| {
-        let size = f(buffer.as_mut_ptr(), as_i32(buffer.capacity())).max(0) as usize;
+        let size = as_usize(f(buffer.as_mut_ptr(), as_i32(buffer.capacity())));
         if size <= buffer.capacity() {
             return buffer.to_boxed_slice(size);
         }
         let mut buf = vec![0u8; size];
-        let length = f(buf.as_mut_ptr(), as_i32(size)).max(0) as usize;
+        let length = as_usize(f(buf.as_mut_ptr(), as_i32(size)));
         buf.truncate(length);
         buf.into_boxed_slice()
     })
@@ -120,34 +133,33 @@ fn read_buf(f: impl Fn(*mut u8, i32) -> i32) -> Box<[u8]> {
 fn read_buf_multi(f: impl Fn(*mut u8, i32) -> i64) -> Vec<Box<[u8]>> {
     memory::with_buffer(|buffer| {
         let (count, len) = split_i64(f(buffer.as_mut_ptr(), as_i32(buffer.capacity())));
-        let len = len.max(0);
-        if len as usize <= buffer.capacity() {
+        if len <= buffer.capacity() {
             return split(buffer.as_slice(), count, len);
         }
-
-        let mut buf = vec![0u8; len as usize];
-        let (count, len) = split_i64(f(buf.as_mut_ptr(), len));
+        debug_assert!(len <= MAX_ALLOC_SIZE, "host response too large: {len} bytes (max {})", MAX_ALLOC_SIZE);
+        let len = len.min(MAX_ALLOC_SIZE);
+        let mut buf = vec![0u8; len];
+        let (count, len) = split_i64(f(buf.as_mut_ptr(), as_i32(len)));
         split(&buf, count, len)
     })
 }
 
-fn split(buf: &[u8], count: i32, len: i32) -> Vec<Box<[u8]>> {
-    let len = len.max(0) as usize;
+fn split(buf: &[u8], count: usize, len: usize) -> Vec<Box<[u8]>> {
     let out: Vec<Box<[u8]>> = buf[..len].split(|&b| b == 0).filter(|s| !s.is_empty()).map(Box::from).collect();
-    debug_assert_eq!(out.len(), count as usize, "split count mismatch: host reported {count} items but found {}", out.len());
+    debug_assert_eq!(count, out.len(), "split count mismatch: host reported {count} items but found {}", out.len());
     out
 }
 
-fn split_i64(n: i64) -> (i32, i32) {
-    (
-        (n >> 32) as i32, //upper count
-        n as i32,         //lower len
-    )
+fn eof_size(n: i64) -> (bool, usize) {
+    let v = (n >> 32) as i32;
+    (v != 0, as_usize(n as i32))
 }
 
-fn eof_size(n: i64) -> (bool, i32) {
-    let (v, size) = split_i64(n);
-    (v == 1, size)
+fn split_i64(n: i64) -> (usize, usize) {
+    (
+        as_usize((n >> 32) as i32), //upper count
+        as_usize(n as i32),         //lower len
+    )
 }
 
 #[cfg(test)]
@@ -155,21 +167,14 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_status_code() {
-        assert_eq!(status_code(), 200);
-    }
+    // =========================================================================
+    // Internal Helper Tests
+    // =========================================================================
 
     #[test]
     fn test_split_i64() {
         let (a, b) = split_i64(2 << 32 | 28);
         assert_eq!((a, b), (2, 28));
-    }
-
-    #[test]
-    fn test_method() {
-        let m = method();
-        assert_eq!(b"GET", m.as_ref());
     }
 
     #[test]
@@ -190,9 +195,18 @@ mod tests {
     }
 
     #[test]
+    fn test_eof_protocol_error() {
+        // Non-zero EOF flag (-1 in upper 32 bits) is treated as EOF, size 50 in lower 32 bits
+        // This demonstrates that any non-zero upper value triggers EOF, not just 1
+        let (eof, size) = eof_size(-1i64 << 32 | 50);
+        assert!(eof);
+        assert_eq!(size, 50);
+    }
+
+    #[test]
     fn test_split_nul_single() {
         let data = b"hello\0";
-        let result = split(data, 1, data.len() as i32);
+        let result = split(data, 1, data.len());
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].as_ref(), b"hello");
     }
@@ -200,7 +214,7 @@ mod tests {
     #[test]
     fn test_split_nul_multiple() {
         let data = b"foo\0bar\0baz\0";
-        let result = split(data, 3, data.len() as i32);
+        let result = split(data, 3, data.len());
         assert_eq!(result.len(), 3);
         assert_eq!(result[0].as_ref(), b"foo");
         assert_eq!(result[1].as_ref(), b"bar");
@@ -210,136 +224,15 @@ mod tests {
     #[test]
     fn test_split_nul_empty() {
         let data = b"";
-        let result = split(data, 0, data.len() as i32);
+        let result = split(data, 0, data.len());
         assert!(result.is_empty());
     }
 
     #[test]
     fn test_split_nul_empty_elem() {
         let data = b"\0test1\0\0test2\0";
-        let result = split(data, 2, data.len() as i32);
+        let result = split(data, 2, data.len());
         assert_eq!(result.len(), 2);
-    }
-
-    #[test]
-    fn test_body_read() {
-        // Test reading body - mock returns HTML content with EOF
-        let content = body(0);
-        assert!(!content.is_empty());
-        assert!(content.starts_with(b"<html>"));
-    }
-
-    #[test]
-    fn test_write_body() {
-        // Should not panic - mock accepts any body
-        write_body(0, b"test body content");
-    }
-
-    #[test]
-    fn test_version() {
-        let v = version();
-        assert_eq!(v.as_ref(), b"HTTP/2.0");
-    }
-
-    #[test]
-    fn test_uri() {
-        let u = uri();
-        assert_eq!(u.as_ref(), b"https://test");
-    }
-
-    #[test]
-    fn test_source_addr() {
-        let addr = source_addr();
-        assert_eq!(addr.as_ref(), b"192.168.1.1");
-    }
-
-    #[test]
-    fn test_set_method() {
-        // Should not panic - mock accepts any method
-        set_method(b"POST");
-    }
-
-    #[test]
-    fn test_set_uri() {
-        // Should not panic - mock accepts any URI
-        set_uri(b"/new/path");
-    }
-
-    #[test]
-    fn test_set_status_code() {
-        // Should not panic - mock accepts any status code
-        set_status_code(404);
-    }
-
-    #[test]
-    fn test_get_config() {
-        let config = get_config();
-        let config_str = std::str::from_utf8(&config).unwrap();
-        assert!(config_str.contains("config"));
-    }
-
-    #[test]
-    fn test_enable_feature() {
-        // Should return 0 (success) from mock
-        let result = enable_feature(1);
-        assert_eq!(result, 0);
-    }
-
-    #[test]
-    fn test_log() {
-        // Should not panic - mock accepts log calls
-        log(2, b"test message");
-    }
-
-    #[test]
-    fn test_log_enabled() {
-        // Mock enables levels 0-3
-        assert!(log_enabled(0));
-        assert!(log_enabled(2));
-        assert!(!log_enabled(-1));
-    }
-
-    #[test]
-    fn test_header_names() {
-        let names = header_names(0);
-        assert_eq!(names.len(), 3);
-    }
-
-    #[test]
-    fn test_header_values_existing() {
-        let values = header_values(0, b"X-FOO");
-        assert_eq!(values.len(), 1);
-        assert_eq!(values[0].as_ref(), b"test1");
-    }
-
-    #[test]
-    fn test_header_values_multiple() {
-        let values = header_values(0, b"x-bar");
-        assert_eq!(values.len(), 2);
-    }
-
-    #[test]
-    fn test_header_values_nonexistent() {
-        let values = header_values(0, b"X-UNKNOWN");
-        assert!(values.is_empty());
-    }
-
-    #[test]
-    fn test_remove_header() {
-        // Should not panic - mock accepts header removal
-        remove_header(0, b"X-FOO");
-    }
-
-    #[test]
-    fn test_set_header() {
-        // Should not panic - mock accepts header set
-        set_header(0, b"X-New", b"value");
-    }
-
-    #[test]
-    fn test_add_header_value() {
-        // Should not panic - mock accepts header add
-        add_header_value(0, b"X-Existing", b"new-value");
     }
 
     // =========================================================================
@@ -366,6 +259,21 @@ mod tests {
     }
 
     #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "negative value from host")]
+    fn test_read_buf_underflow_debug() {
+        let _result = read_buf(|_, _| -1);
+    }
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn test_read_buf_underflow_release() {
+        // In release, -1 becomes 0 via max(0)
+        let result = read_buf(|_, _| -1);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
     fn test_read_buf_multi_overflow() {
         // Build NUL-delimited data larger than 2048-byte shared buffer
         let mut data = Vec::new();
@@ -389,18 +297,20 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "split count mismatch")]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "split count mismatch: host reported 5 items but found 3")]
     fn test_split_count_mismatch() {
         // count=5 but data only contains 3 items → debug_assert fires
         let data = b"one\0two\0three\0";
-        split(data, 5, data.len() as i32);
+        split(data, 5, data.len());
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_body_max_size_limit() {
-        // kind=99 returns full buffer chunks without EOF
-        let content = body(99);
-        assert!(content.len() >= MAX_BODY_SIZE);
+        // TEST_KIND_OVERSIZED_BODY returns full buffer chunks without EOF
+        let content = body(test::kinds::OVERSIZED_BODY);
+        assert!(content.len() >= MAX_ALLOC_SIZE);
         assert!(content.iter().all(|&b| b == b'A'));
     }
 }

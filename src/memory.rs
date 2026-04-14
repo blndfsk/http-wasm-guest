@@ -79,6 +79,10 @@ impl Buffer {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Production: single static buffer (sound in single-threaded WASM)
+// ---------------------------------------------------------------------------
+#[cfg(not(test))]
 static BUFFER: SyncCell<Buffer> = SyncCell::new(Buffer::new());
 
 /// Provides scoped, exclusive access to the global buffer.
@@ -91,11 +95,32 @@ static BUFFER: SyncCell<Buffer> = SyncCell::new(Buffer::new());
 ///
 /// Sound only in a single-threaded context (WASM guest). The closure must not
 /// re-enter `with_buffer`.
+#[cfg(not(test))]
 pub(crate) fn with_buffer<R>(f: impl FnOnce(&mut Buffer) -> R) -> R {
     // SAFETY: WASM guest is single-threaded; the closure scope guarantees
     // that no second &mut reference can coexist.
     let buf = unsafe { &mut *BUFFER.get() };
     f(buf)
+}
+
+// ---------------------------------------------------------------------------
+// Test: thread-local buffer (sound under parallel test execution)
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+thread_local! {
+    static BUFFER: std::cell::UnsafeCell<Buffer> = const { std::cell::UnsafeCell::new(Buffer::new()) };
+}
+
+/// Test version of `with_buffer` using thread-local storage to avoid
+/// aliasing `&mut` references across parallel test threads.
+#[cfg(test)]
+pub(crate) fn with_buffer<R>(f: impl FnOnce(&mut Buffer) -> R) -> R {
+    BUFFER.with(|cell| {
+        // SAFETY: thread-local storage guarantees no cross-thread aliasing;
+        // the closure scope prevents re-entrant aliasing on the same thread.
+        let buf = unsafe { &mut *cell.get() };
+        f(buf)
+    })
 }
 
 #[cfg(test)]

@@ -1,3 +1,20 @@
+## v0.11.0
+
+### API-Breaking Changes
+
+- rename Header::values to entries
+- rename Header::get_all to values
+- remove unchecked UTF-8 conversion from Bytes
+
+### Features
+
+- add traits Copy, Clone and BitOrAssign for Feature flags
+
+### Refactoring
+
+- support parallel test execution
+- safe conversions between i32 and usize
+
 ## v0.10.3
 
 ### Bug Fixes

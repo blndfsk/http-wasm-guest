@@ -37,10 +37,10 @@ jobs:
         run: cargo fmt --all --check
 
       - name: Run tests
-        run: cargo test --lib -- --test-threads=1
+        run: cargo test --lib
 
       - name: Run doctests
-        run: cargo test --doc -- --test-threads=1
+        run: cargo test --doc
 
       - name: Run clippy
         run: cargo clippy --all-targets --all-features
