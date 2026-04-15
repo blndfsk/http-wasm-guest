@@ -10,7 +10,7 @@ use std::{
 /// and can be created from common byte-oriented types.
 ///
 /// Use [`to_str`](Bytes::to_str) to interpret the contents as UTF-8.
-#[derive(PartialEq, Eq, Clone, Debug, Hash, Default)]
+#[derive(PartialEq, PartialOrd, Eq, Clone, Debug, Hash, Default)]
 pub struct Bytes(Box<[u8]>);
 
 impl Bytes {
@@ -29,6 +29,7 @@ impl Deref for Bytes {
         self.0.as_ref()
     }
 }
+
 impl Display for Bytes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self.to_str() {

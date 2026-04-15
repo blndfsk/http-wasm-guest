@@ -20,8 +20,8 @@ impl Header {
     /// Return all header names as raw bytes.
     ///
     /// Header names are returned in the order provided by the host runtime.
-    pub fn names(&self) -> Vec<Bytes> {
-        handler::header_names(self.0).into_iter().map(Bytes::from).collect()
+    pub fn names(&self) -> impl Iterator<Item = Bytes> + '_ {
+        handler::header_names(self.0).into_iter().map(Bytes::from)
     }
 
     /// Return the first value for the given header name, if present.
@@ -36,8 +36,8 @@ impl Header {
     ///
     /// The `name` is matched by the host according to its header normalization
     /// rules (often case-insensitive).
-    pub fn values(&self, name: &[u8]) -> Vec<Bytes> {
-        handler::header_values(self.0, name).into_iter().map(Bytes::from).collect()
+    pub fn values(&self, name: &[u8]) -> impl Iterator<Item = Bytes> + '_ {
+        handler::header_values(self.0, name).into_iter().map(Bytes::from)
     }
 
     /// Set a header value, replacing any existing values.
@@ -59,18 +59,11 @@ impl Header {
     ///
     /// This collects all names and then queries each set of values.
     pub fn entries(&self) -> HashMap<Bytes, Vec<Bytes>> {
-        let headers = self.names();
-        let mut result: HashMap<Bytes, Vec<Bytes>> = HashMap::with_capacity(headers.len());
-        for key in headers {
-            let mut values = self.values(&key);
-            match result.get_mut(&key) {
-                Some(val) => {
-                    val.append(&mut values);
-                }
-                None => {
-                    result.insert(key, values);
-                }
-            }
+        let mut result: HashMap<Bytes, Vec<Bytes>> = HashMap::new();
+
+        for name in self.names() {
+            let values = self.values(&name);
+            result.entry(name).or_default().extend(values);
         }
         result
     }
@@ -98,7 +91,7 @@ mod tests {
     #[test]
     fn header_get_all_single_value() {
         let header = Header::kind(0);
-        let values = header.values(b"X-FOO");
+        let values = header.values(b"X-FOO").collect::<Vec<_>>();
         assert_eq!(values.len(), 1);
         assert_eq!(values[0].to_str().unwrap(), "test1");
     }
@@ -107,7 +100,7 @@ mod tests {
     fn header_get_all_multiple_values() {
         let header = Header::kind(0);
         // The mock has "x-bar" with values "test2" and "test3"
-        let values = header.values(b"x-bar");
+        let values = header.values(b"x-bar").collect::<Vec<_>>();
         assert_eq!(values.len(), 2);
         assert!(values.iter().any(|v| v.to_str().unwrap() == "test2"));
         assert!(values.iter().any(|v| v.to_str().unwrap() == "test3"));
@@ -116,7 +109,7 @@ mod tests {
     #[test]
     fn header_names() {
         let header = Header::kind(0);
-        let names = header.names();
+        let names = header.names().collect::<Vec<_>>();
         // The mock provides: X-FOO, x-bar, x-baz
         assert_eq!(names.len(), 3);
     }
@@ -158,7 +151,7 @@ mod tests {
     fn header_operations_with_bytes() {
         let header = Header::kind(0);
         let name = Bytes::from("x-bar");
-        let values = header.values(&name);
+        let values = header.values(&name).collect::<Vec<_>>();
         assert!(!values.is_empty());
     }
 

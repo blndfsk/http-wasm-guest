@@ -8,7 +8,7 @@ const KIND_REQ: i32 = 0;
 
 impl Request {
     /// Creates a new `Request` instance with header and body handles.
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self { header: Header::kind(KIND_REQ), body: Body::kind(KIND_REQ) }
     }
 
@@ -103,7 +103,7 @@ mod tests {
         let request = Request::new();
         let header = request.header();
         // The mock provides headers: X-FOO, x-bar, x-baz
-        let names = header.names();
+        let names: Vec<_> = header.names().collect();
         assert_eq!(names.len(), 3);
     }
 
