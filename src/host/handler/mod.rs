@@ -308,7 +308,7 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_body_max_size_limit() {
-        // TEST_KIND_OVERSIZED_BODY returns full buffer chunks without EOF
+        // OVERSIZED_BODY returns full buffer chunks without EOF
         let content = body(test::kinds::OVERSIZED_BODY);
         assert!(content.len() >= MAX_ALLOC_SIZE);
         assert!(content.iter().all(|&b| b == b'A'));

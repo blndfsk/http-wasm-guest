@@ -8,7 +8,7 @@ const KIND_REQ: i32 = 0;
 
 impl Request {
     /// Creates a new `Request` instance with header and body handles.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { header: Header::kind(KIND_REQ), body: Body::kind(KIND_REQ) }
     }
 

@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     fmt::Display,
     ops::Deref,
     str::{Utf8Error, from_utf8},
@@ -10,7 +11,7 @@ use std::{
 /// and can be created from common byte-oriented types.
 ///
 /// Use [`to_str`](Bytes::to_str) to interpret the contents as UTF-8.
-#[derive(PartialEq, PartialOrd, Eq, Clone, Debug, Hash, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Hash, Default)]
 pub struct Bytes(Box<[u8]>);
 
 impl Bytes {
@@ -39,14 +40,23 @@ impl Display for Bytes {
         write!(f, "{}", &s)
     }
 }
-/// Creates a `Bytes` value from a UTF-8 string slice.
-///
-/// The string is copied into an owned byte buffer.
-impl From<&str> for Bytes {
-    fn from(value: &str) -> Self {
-        Self(value.as_bytes().to_vec().into_boxed_slice())
+
+impl Borrow<str> for Bytes {
+    fn borrow(&self) -> &str {
+        match self.to_str() {
+            Ok(s) => s,
+            Err(e) => from_utf8(&self.0[..e.valid_up_to()]).unwrap_or_default(),
+        }
     }
 }
+
+/// Creates a `Bytes` value from an existing boxed slice without copying.
+impl From<Box<[u8]>> for Bytes {
+    fn from(value: Box<[u8]>) -> Self {
+        Self(value)
+    }
+}
+
 /// Creates a `Bytes` value by taking ownership of a byte vector.
 ///
 /// This avoids an extra copy by converting the `Vec<u8>` into a boxed slice.
@@ -55,16 +65,20 @@ impl From<Vec<u8>> for Bytes {
         Self(value.into_boxed_slice())
     }
 }
+
 /// Creates a `Bytes` value by copying a byte slice.
 impl From<&[u8]> for Bytes {
     fn from(value: &[u8]) -> Self {
-        Self(value.to_vec().into_boxed_slice())
+        Self(value.to_vec().into())
     }
 }
-/// Creates a `Bytes` value from an existing boxed slice without copying.
-impl From<Box<[u8]>> for Bytes {
-    fn from(value: Box<[u8]>) -> Self {
-        Self(value)
+
+/// Creates a `Bytes` value from a UTF-8 string slice.
+///
+/// The string is copied into an owned byte buffer.
+impl From<&str> for Bytes {
+    fn from(value: &str) -> Self {
+        Self(value.as_bytes().into())
     }
 }
 

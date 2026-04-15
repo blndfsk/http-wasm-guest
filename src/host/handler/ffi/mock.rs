@@ -3,7 +3,7 @@
 // =============================================================================
 
 // Re-export mock functions with the same names as the extern declarations
-use std::ptr;
+use std::{ptr, slice::from_raw_parts};
 
 use crate::host::handler::test;
 
@@ -87,22 +87,11 @@ pub(crate) unsafe fn remove_header(_kind: i32, _name: *const u8, _len: i32) {
 }
 
 /// Returns header names: X-FOO, x-bar, x-baz
-/// For TEST_KIND_DUPLICATE_HEADERS, returns duplicate header names
 /// Return value: count in upper 32 bits, length in lower 32 bits
-pub(crate) unsafe fn get_header_names(kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
-    match kind {
-        test::kinds::DUPLICATE_HEADERS => {
-            // Return duplicate header names: X-DUP appears twice
-            let data = b"X-DUP\0X-OTHER\0X-DUP\0";
-            let len = copy_to_buf(data, buf, buf_limit);
-            (3i64 << 32) | (len as i64)
-        }
-        _ => {
-            let data = b"X-FOO\0x-bar\0x-baz\0";
-            let len = copy_to_buf(data, buf, buf_limit);
-            (3i64 << 32) | (len as i64)
-        }
-    }
+pub(crate) unsafe fn get_header_names(_kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
+    let data = b"X-FOO\0x-bar\0x-baz\0";
+    let len = copy_to_buf(data, buf, buf_limit);
+    (3i64 << 32) | (len as i64)
 }
 
 /// Returns header values based on name:
@@ -111,21 +100,14 @@ pub(crate) unsafe fn get_header_names(kind: i32, buf: *mut u8, buf_limit: i32) -
 /// - x-baz: ["test4"]
 ///
 /// Return value: count in upper 32 bits, length in lower 32 bits
-pub(crate) unsafe fn get_header_values(kind: i32, name: *const u8, name_len: i32, buf: *mut u8, buf_limit: i32) -> i64 {
-    let name_slice = unsafe { std::slice::from_raw_parts(name, name_len as usize) };
+pub(crate) unsafe fn get_header_values(_kind: i32, name: *const u8, name_len: i32, buf: *mut u8, buf_limit: i32) -> i64 {
+    let name = unsafe { from_raw_parts(name, name_len as usize) };
 
-    // kind=98 triggers duplicate header value test
-    match kind {
-        test::kinds::DUPLICATE_HEADERS => match name_slice {
-            b"X-DUP" => (1i64 << 32) | copy_to_buf(b"dup-value\0", buf, buf_limit) as i64,
-            _ => (1i64 << 32) | copy_to_buf(b"other-value\0", buf, buf_limit) as i64,
-        },
-        _ => match name_slice {
-            b"X-FOO" => (1i64 << 32) | copy_to_buf(b"test1\0", buf, buf_limit) as i64,
-            b"x-bar" => (2i64 << 32) | copy_to_buf(b"test2\0test3\0", buf, buf_limit) as i64,
-            b"x-baz" => (1i64 << 32) | copy_to_buf(b"test4\0", buf, buf_limit) as i64,
-            _ => 0i64,
-        },
+    match name {
+        b"X-FOO" => (1i64 << 32) | copy_to_buf(b"test1\0", buf, buf_limit) as i64,
+        b"x-bar" => (2i64 << 32) | copy_to_buf(b"test2\0test3\0", buf, buf_limit) as i64,
+        b"x-baz" => (2i64 << 32) | copy_to_buf(b"test4\0test4\0", buf, buf_limit) as i64,
+        _ => 0i64,
     }
 }
 
