@@ -65,7 +65,7 @@ mod tests {
         let response = Response::new();
         let header = response.header();
         // Response headers use kind=1, should still work
-        let _ = header.names();
+        let _ = header.names_iter();
     }
 
     #[test]

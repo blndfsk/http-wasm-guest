@@ -17,27 +17,43 @@ impl Header {
         Self(kind)
     }
 
-    /// Return all header names as raw bytes.
+    /// Return all header names as raw bytes without allocating into a vector.
     ///
     /// Header names are returned in the order provided by the host runtime.
-    pub fn names(&self) -> impl Iterator<Item = Bytes> + '_ {
+    pub fn names_iter(&self) -> impl Iterator<Item = Bytes> + use<'_> {
         handler::header_names(self.0).into_iter().map(Bytes::from)
     }
 
-    /// Return the first value for the given header name, if present.
+    /// Return all header names as raw bytes, allocating into a vector.
     ///
-    /// The `name` is matched by the host according to its header normalization
-    /// rules (often case-insensitive).
-    pub fn get(&self, name: &[u8]) -> Option<Bytes> {
-        handler::header_values(self.0, name).into_iter().next().map(Bytes::from)
+    /// Header names are returned in the order provided by the host runtime.
+    /// This method collects results into a `Vec`, which allocates heap memory.
+    /// Use [`names_iter`](Header::names_iter) for zero-allocation access.
+    pub fn names(&self) -> Vec<Bytes> {
+        self.names_iter().collect()
     }
 
-    /// Return all values for the given header name.
+    /// Return all values for the given header name without allocating into a vector.
     ///
     /// The `name` is matched by the host according to its header normalization
     /// rules (often case-insensitive).
-    pub fn values(&self, name: &[u8]) -> impl Iterator<Item = Bytes> + '_ {
+    pub fn values_iter(&self, name: &[u8]) -> impl Iterator<Item = Bytes> + use<'_> {
         handler::header_values(self.0, name).into_iter().map(Bytes::from)
+    }
+
+    /// Return the first value for the given header name, if present.
+    pub fn get(&self, name: &[u8]) -> Option<Bytes> {
+        self.values_iter(name).next()
+    }
+
+    /// Return all values for the given header name, allocating into a vector.
+    ///
+    /// The `name` is matched by the host according to its header normalization
+    /// rules (often case-insensitive). This method collects results into a `Vec`,
+    /// which allocates heap memory. Use [`values_iter`](Header::values_iter) for
+    /// zero-allocation access.
+    pub fn values(&self, name: &[u8]) -> Vec<Bytes> {
+        self.values_iter(name).collect()
     }
 
     /// Set a header value, replacing any existing values.
@@ -55,13 +71,28 @@ impl Header {
         handler::remove_header(self.0, name);
     }
 
+    /// Return all headers as an iterator of names to value iterators.
+    ///
+    /// This avoids allocating into a `HashMap` and `Vec` by providing lazy
+    /// evaluation through iterators. Each entry contains the header name paired
+    /// with an iterator over its values.
+    pub fn entries_iter(&self) -> impl Iterator<Item = (Bytes, impl Iterator<Item = Bytes>)> + '_ {
+        self.names_iter().map(|name| {
+            let values = self.values_iter(&name);
+            (name, values)
+        })
+    }
+
     /// Return all headers as a map of names to value lists.
     ///
-    /// This collects all names and then queries each set of values.
+    /// This collects all names and then queries each set of values, allocating
+    /// into a `HashMap` and multiple `Vec`s for the values. Each header name is
+    /// paired with a vector containing its associated values. Use
+    /// [`entries_iter`](Header::entries_iter) for zero-allocation access.
     pub fn entries(&self) -> HashMap<Bytes, Vec<Bytes>> {
-        self.names()
+        self.names_iter()
             .map(|name| {
-                let values = self.values(&name).collect::<Vec<Bytes>>();
+                let values = self.values_iter(&name).collect::<Vec<Bytes>>();
                 (name, values)
             })
             .collect()
@@ -78,7 +109,7 @@ mod tests {
         // The mock has "X-FOO" header with value "test1"
         let value = header.get(b"X-FOO");
         assert!(value.is_some());
-        assert_eq!(value.unwrap().to_str().unwrap(), "test1");
+        assert_eq!(&value.unwrap(), b"test1");
     }
 
     #[test]
@@ -91,25 +122,25 @@ mod tests {
     #[test]
     fn header_get_all_single_value() {
         let header = Header::kind(0);
-        let values = header.values(b"X-FOO").collect::<Vec<_>>();
+        let values = header.values(b"X-FOO");
         assert_eq!(values.len(), 1);
-        assert_eq!(values[0].to_str().unwrap(), "test1");
+        assert_eq!(&values[0], b"test1");
     }
 
     #[test]
     fn header_get_all_multiple_values() {
         let header = Header::kind(0);
         // The mock has "x-bar" with values "test2" and "test3"
-        let values = header.values(b"x-bar").collect::<Vec<_>>();
+        let values = header.values(b"x-bar");
         assert_eq!(values.len(), 2);
-        assert!(values.iter().any(|v| v.to_str().unwrap() == "test2"));
-        assert!(values.iter().any(|v| v.to_str().unwrap() == "test3"));
+        assert_eq!(&values[0], b"test2");
+        assert_eq!(&values[1], b"test3");
     }
 
     #[test]
     fn header_names() {
         let header = Header::kind(0);
-        let names = header.names().collect::<Vec<_>>();
+        let names = header.names();
         // The mock provides: X-FOO, x-bar, x-baz
         assert_eq!(names.len(), 3);
     }
@@ -121,7 +152,7 @@ mod tests {
         // Should have 3 distinct header names
         assert_eq!(values_map.len(), 3);
         // X-FOO should have 1 value
-        assert_eq!(values_map.get(&Bytes::from("X-FOO")).map(|v| v.len()), Some(1));
+        assert_eq!(values_map.get(&Bytes::from("X-FOO")).unwrap().len(), 1);
         // x-bar should have 2 values
         assert_eq!(values_map.get(&Bytes::from("x-bar")).map(|v| v.len()), Some(2));
     }
@@ -130,7 +161,7 @@ mod tests {
     fn header_operations_with_bytes() {
         let header = Header::kind(0);
         let name = Bytes::from("x-bar");
-        let values = header.values(&name).collect::<Vec<_>>();
+        let values = header.values(&name);
         assert!(!values.is_empty());
     }
 

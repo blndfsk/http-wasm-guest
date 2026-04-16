@@ -50,6 +50,12 @@ impl Borrow<str> for Bytes {
     }
 }
 
+impl<const N: usize> PartialEq<[u8; N]> for Bytes {
+    fn eq(&self, other: &[u8; N]) -> bool {
+        self.as_ref() == other
+    }
+}
+
 /// Creates a `Bytes` value from an existing boxed slice without copying.
 impl From<Box<[u8]>> for Bytes {
     fn from(value: Box<[u8]>) -> Self {

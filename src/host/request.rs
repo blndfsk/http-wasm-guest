@@ -70,7 +70,7 @@ mod tests {
         let request = Request::new();
         let method = request.method();
         // The mock returns "GET"
-        assert_eq!(method.to_str().unwrap(), "GET");
+        assert_eq!(&method, b"GET");
     }
 
     #[test]
@@ -103,7 +103,7 @@ mod tests {
         let request = Request::new();
         let header = request.header();
         // The mock provides headers: X-FOO, x-bar, x-baz
-        let names: Vec<_> = header.names().collect();
+        let names: Vec<_> = header.names_iter().collect();
         assert_eq!(names.len(), 3);
     }
 
