@@ -17,14 +17,16 @@ impl Header {
         Self(kind)
     }
 
-    /// Return all header names as raw bytes without allocating into a vector.
+    /// Returns an iterator over all header names as raw bytes without allocating into a vector.
     ///
     /// Header names are returned in the order provided by the host runtime.
+    /// This method is zero-allocation and returns an iterator that yields each
+    /// header name as `Bytes`. For heap-allocated results, use [`names`](Header::names).
     pub fn names_iter(&self) -> impl Iterator<Item = Bytes> + use<'_> {
         handler::header_names(self.0).into_iter().map(Bytes::from)
     }
 
-    /// Return all header names as raw bytes, allocating into a vector.
+    /// Returns all header names as raw bytes, allocating into a vector.
     ///
     /// Header names are returned in the order provided by the host runtime.
     /// This method collects results into a `Vec`, which allocates heap memory.
@@ -33,10 +35,12 @@ impl Header {
         self.names_iter().collect()
     }
 
-    /// Return all values for the given header name without allocating into a vector.
+    /// Returns an iterator over all values for the given header name without allocating into a vector.
     ///
     /// The `name` is matched by the host according to its header normalization
-    /// rules (often case-insensitive).
+    /// rules (often case-insensitive). This method is zero-allocation and returns
+    /// an iterator that yields each header value as `Bytes`. For heap-allocated results,
+    /// use [`values`](Header::values).
     pub fn values_iter(&self, name: &[u8]) -> impl Iterator<Item = Bytes> + use<'_> {
         handler::header_values(self.0, name).into_iter().map(Bytes::from)
     }
@@ -46,7 +50,7 @@ impl Header {
         self.values_iter(name).next()
     }
 
-    /// Return all values for the given header name, allocating into a vector.
+    /// Returns all values for the given header name, allocating into a vector.
     ///
     /// The `name` is matched by the host according to its header normalization
     /// rules (often case-insensitive). This method collects results into a `Vec`,
@@ -71,14 +75,15 @@ impl Header {
         handler::remove_header(self.0, name);
     }
 
-    /// Return all headers as an iterator of names to value iterators.
+    /// Return all headers as an iterator of names to value lists.
     ///
-    /// This avoids allocating into a `HashMap` and `Vec` by providing lazy
-    /// evaluation through iterators. Each entry contains the header name paired
-    /// with an iterator over its values.
-    pub fn entries_iter(&self) -> impl Iterator<Item = (Bytes, impl Iterator<Item = Bytes>)> + '_ {
+    /// This returns an iterator over all header entries. Each entry contains
+    /// the header name paired with a vector containing its associated values.
+    /// For zero-allocation access, use [`names_iter`](Header::names_iter) and
+    /// [`values_iter`](Header::values_iter).
+    pub fn entries_iter(&self) -> impl Iterator<Item = (Bytes, Vec<Bytes>)> + '_ {
         self.names_iter().map(|name| {
-            let values = self.values_iter(&name);
+            let values: Vec<Bytes> = self.values_iter(&name).collect();
             (name, values)
         })
     }
@@ -90,12 +95,7 @@ impl Header {
     /// paired with a vector containing its associated values. Use
     /// [`entries_iter`](Header::entries_iter) for zero-allocation access.
     pub fn entries(&self) -> HashMap<Bytes, Vec<Bytes>> {
-        self.names_iter()
-            .map(|name| {
-                let values = self.values_iter(&name).collect::<Vec<Bytes>>();
-                (name, values)
-            })
-            .collect()
+        self.entries_iter().collect()
     }
 }
 
