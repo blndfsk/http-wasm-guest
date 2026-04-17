@@ -10,7 +10,7 @@ keywords = ["http-wasm", "wasm", "http", "plugin", "traefik"]
 categories = ["wasm", "web-programming"]
 
 [dependencies]
-log = { version = "0.4.29", optional = true }
+log = { version = "0.4", optional = true }
 
 [features]
 default = ["log"]

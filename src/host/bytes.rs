@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     fmt::Display,
     ops::Deref,
     str::{Utf8Error, from_utf8},
@@ -10,7 +11,7 @@ use std::{
 /// and can be created from common byte-oriented types.
 ///
 /// Use [`to_str`](Bytes::to_str) to interpret the contents as UTF-8.
-#[derive(PartialEq, Eq, Clone, Debug, Hash, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Hash, Default)]
 pub struct Bytes(Box<[u8]>);
 
 impl Bytes {
@@ -29,6 +30,7 @@ impl Deref for Bytes {
         self.0.as_ref()
     }
 }
+
 impl Display for Bytes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self.to_str() {
@@ -38,14 +40,91 @@ impl Display for Bytes {
         write!(f, "{}", &s)
     }
 }
-/// Creates a `Bytes` value from a UTF-8 string slice.
-///
-/// The string is copied into an owned byte buffer.
-impl From<&str> for Bytes {
-    fn from(value: &str) -> Self {
-        Self(value.as_bytes().to_vec().into_boxed_slice())
+
+impl Borrow<[u8]> for Bytes {
+    fn borrow(&self) -> &[u8] {
+        self.as_ref()
     }
 }
+
+impl<const N: usize> Borrow<[u8; N]> for Bytes {
+    fn borrow(&self) -> &[u8; N] {
+        debug_assert!(self.len() == N);
+        // SAFETY: We verified that self.len() == N above, so the slice has exactly N elements.
+        // Casting from &[u8] to &[u8; N] is valid when the lengths match.
+        unsafe { &*(self.as_ref() as *const [u8] as *const [u8; N]) }
+    }
+}
+
+impl<const N: usize> PartialEq<[u8; N]> for Bytes {
+    fn eq(&self, other: &[u8; N]) -> bool {
+        self.as_ref() == other
+    }
+}
+
+impl<const N: usize> PartialEq<Bytes> for [u8; N] {
+    fn eq(&self, other: &Bytes) -> bool {
+        self == other.as_ref()
+    }
+}
+
+impl<const N: usize> PartialEq<&[u8; N]> for Bytes {
+    fn eq(&self, other: &&[u8; N]) -> bool {
+        self == *other
+    }
+}
+
+// impl<const N: usize> PartialEq<Bytes> for &[u8; N] {
+//     fn eq(&self, other: &Bytes) -> bool {
+//         *self == other.as_ref()
+//     }
+// }
+
+impl PartialEq<str> for Bytes {
+    fn eq(&self, other: &str) -> bool {
+        match self.to_str() {
+            Ok(s) => s == other,
+            Err(_) => false,
+        }
+    }
+}
+
+impl PartialEq<&str> for Bytes {
+    fn eq(&self, other: &&str) -> bool {
+        match self.to_str() {
+            Ok(s) => s == *other,
+            Err(_) => false,
+        }
+    }
+}
+
+impl PartialEq<Bytes> for str {
+    fn eq(&self, other: &Bytes) -> bool {
+        self.as_bytes() == other.as_ref()
+    }
+}
+
+/// Creates a `Bytes` value from an existing boxed slice without copying.
+impl From<Box<[u8]>> for Bytes {
+    fn from(value: Box<[u8]>) -> Self {
+        Self(value)
+    }
+}
+
+/// Creates a `Bytes` value by copying a byte slice.
+impl From<&[u8]> for Bytes {
+    fn from(value: &[u8]) -> Self {
+        Self(value.to_vec().into_boxed_slice())
+    }
+}
+
+/// Creates a `Bytes` value by copying a byte slice.
+impl<const N: usize> From<&[u8; N]> for Bytes {
+    fn from(value: &[u8; N]) -> Self {
+        Self(Box::new(*value))
+    }
+}
+
 /// Creates a `Bytes` value by taking ownership of a byte vector.
 ///
 /// This avoids an extra copy by converting the `Vec<u8>` into a boxed slice.
@@ -54,16 +133,13 @@ impl From<Vec<u8>> for Bytes {
         Self(value.into_boxed_slice())
     }
 }
-/// Creates a `Bytes` value by copying a byte slice.
-impl From<&[u8]> for Bytes {
-    fn from(value: &[u8]) -> Self {
-        Self(value.to_vec().into_boxed_slice())
-    }
-}
-/// Creates a `Bytes` value from an existing boxed slice without copying.
-impl From<Box<[u8]>> for Bytes {
-    fn from(value: Box<[u8]>) -> Self {
-        Self(value)
+
+/// Creates a `Bytes` value from a UTF-8 string slice.
+///
+/// The string is copied into an owned byte buffer.
+impl From<&str> for Bytes {
+    fn from(value: &str) -> Self {
+        Self(value.as_bytes().into())
     }
 }
 
@@ -162,5 +238,54 @@ mod tests {
         let displayed = format!("{}", invalid);
         // The display should contain error info since it's invalid UTF-8
         assert!(!displayed.is_empty());
+    }
+
+    #[test]
+    fn bytes_partial_eq_u8() {
+        let a = b"test";
+        let b = Bytes::from(a);
+
+        assert!(b.eq(a));
+        assert!(a.eq(&b));
+    }
+
+    #[test]
+    fn bytes_partial_eq_str() {
+        let a = "test";
+        let b = Bytes::from(a);
+
+        assert!(b.eq(a));
+        assert!(&b.eq(a));
+        assert!(a.eq(&b));
+    }
+
+    #[test]
+    fn bytes_partial_str_invalid_bytes() {
+        let a = "test";
+        let b = Bytes::from(vec![0xFF, 0xFE]);
+
+        assert!(!b.eq(a));
+        assert!(!b.eq(&a));
+        assert!(!a.eq(&b));
+    }
+
+    #[test]
+    fn bytes_borrow() {
+        let a = b"test";
+        let b = Bytes::from(a);
+        let set: HashSet<Bytes> = HashSet::from([Bytes::from(a)]);
+        assert!(set.contains(a));
+        assert!(set.contains(&b));
+
+        assert_eq!(set.get(&b[..]), Some(&b));
+        assert_eq!(set.get(&b), Some(&b));
+        assert_eq!(set.get(a), Some(&b));
+    }
+
+    #[test]
+    fn bytes_borrow_unknown_key() {
+        let a = b"xxx";
+        let set: HashSet<Bytes> = HashSet::from([Bytes::from(b"test")]);
+        assert!(!set.contains(a));
     }
 }

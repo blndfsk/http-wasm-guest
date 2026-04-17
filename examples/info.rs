@@ -16,8 +16,9 @@ impl Guest for Plugin {
     /// Handles incoming requests by logging metadata and headers.
     fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
         info!("Request: {} {} {} {}", request.method(), request.version(), request.uri(), request.source_addr());
-        for (key, value) in request.header().entries() {
-            info!("Header: {} [ {}]", key, value.iter().fold(String::new(), |acc, b| acc + &b.to_string() + " "));
+        for name in request.header().names_iter() {
+            let values = request.header().values_iter(&name).map(|v| v.to_str().unwrap_or("-").to_string());
+            info!("Header: {} [{}]", name, values.collect::<Vec<_>>().join(", "));
         }
         info!("Body: {}", request.body().read());
         (true, 0)
@@ -25,7 +26,6 @@ impl Guest for Plugin {
     /// Handles outgoing responses by logging status and body.
     fn handle_response(&self, _req_ctx: i32, _request: &Request, response: &Response, _is_error: bool) {
         info!("Status: {}", response.status());
-        info!("Body: {}", response.body().read());
     }
 }
 
