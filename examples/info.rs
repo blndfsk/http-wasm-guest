@@ -16,9 +16,9 @@ impl Guest for Plugin {
     /// Handles incoming requests by logging metadata and headers.
     fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
         info!("Request: {} {} {} {}", request.method(), request.version(), request.uri(), request.source_addr());
-        for name in request.header().names_iter() {
-            let values = request.header().values_iter(&name).map(|v| v.to_str().unwrap_or("-").to_string());
-            info!("Header: {} [{}]", name, values.collect::<Vec<_>>().join(", "));
+        for (name, values) in request.header().entries_iter() {
+            let values = values.iter().map(|v| format!("{v}")).collect::<Vec<_>>().join(", ");
+            info!("Header: {} [{}]", name, values);
         }
         info!("Body: {}", request.body().read());
         (true, 0)
