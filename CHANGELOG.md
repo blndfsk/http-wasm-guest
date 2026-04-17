@@ -1,3 +1,11 @@
+## v0.11.1
+
+### Features
+- **New Methods:**
+  - `names_iter()` - Returns an iterator over all header names without allocation
+  - `values_iter(name)` - Returns an iterator over values for a specific header name without allocation  
+  - `entries_iter()` - Returns an iterator over all headers as name-value pairs without allocation
+
 ## v0.11.0
 
 ### API-Breaking Changes
