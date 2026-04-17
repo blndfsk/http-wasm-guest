@@ -4,6 +4,7 @@ use std::{
     ops::Deref,
     str::{Utf8Error, from_utf8},
 };
+
 /// Owned container for binary data used throughout the API.
 ///
 /// `Bytes` stores its contents as a boxed slice for efficient cloning and
@@ -14,6 +15,8 @@ use std::{
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Hash, Default)]
 pub struct Bytes(Box<[u8]>);
 
+// --- Core API Methods ---
+
 impl Bytes {
     /// Returns the contents as UTF-8 if valid.
     ///
@@ -23,6 +26,9 @@ impl Bytes {
         from_utf8(&self.0)
     }
 }
+
+// --- Standard Library Trait Implementations (for Bytes) ---
+
 impl Deref for Bytes {
     type Target = [u8];
 
@@ -33,11 +39,7 @@ impl Deref for Bytes {
 
 impl Display for Bytes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self.to_str() {
-            Ok(res) => res,
-            Err(err) => &err.to_string(),
-        };
-        write!(f, "{}", &s)
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
     }
 }
 
@@ -55,6 +57,8 @@ impl<const N: usize> Borrow<[u8; N]> for Bytes {
         unsafe { &*(self.as_ref() as *const [u8] as *const [u8; N]) }
     }
 }
+
+// --- Comparison Trait Implementations ---
 
 impl<const N: usize> PartialEq<[u8; N]> for Bytes {
     fn eq(&self, other: &[u8; N]) -> bool {
@@ -74,12 +78,7 @@ impl<const N: usize> PartialEq<&[u8; N]> for Bytes {
     }
 }
 
-// impl<const N: usize> PartialEq<Bytes> for &[u8; N] {
-//     fn eq(&self, other: &Bytes) -> bool {
-//         *self == other.as_ref()
-//     }
-// }
-
+// Helper trait implementations
 impl PartialEq<str> for Bytes {
     fn eq(&self, other: &str) -> bool {
         match self.to_str() {
@@ -103,6 +102,8 @@ impl PartialEq<Bytes> for str {
         self.as_bytes() == other.as_ref()
     }
 }
+
+// --- Conversion Trait Implementations (From<...> for Bytes) ---
 
 /// Creates a `Bytes` value from an existing boxed slice without copying.
 impl From<Box<[u8]>> for Bytes {
@@ -143,10 +144,25 @@ impl From<&str> for Bytes {
     }
 }
 
+// --- Test Module ---
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::HashSet;
+
+    #[test]
+    fn test_display_valid_utf8() {
+        let s = "valid";
+        let b = Bytes::from(s);
+        assert_eq!(format!("{b}"), s);
+    }
+
+    #[test]
+    fn test_display_invalid_utf8() {
+        let b = Bytes::from(vec![0x48, 0xFF, 0x6c, 0x6c, 0x6f]);
+        assert_eq!(format!("{b}"), "H�llo");
+    }
 
     #[test]
     fn bytes_from_string_slice_roundtrip() {
