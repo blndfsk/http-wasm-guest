@@ -17,8 +17,8 @@ impl Guest for Plugin {
     fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
         info!("Request: {} {} {} {}", request.method(), request.version(), request.uri(), request.source_addr());
         for name in request.header().names_iter() {
-            let values = request.header().values(&name).join(", ");
-            info!("Header: {name} [{values}]");
+            let values = request.header().values_iter(&name).map(|v| v.to_str().unwrap_or("-").to_string());
+            info!("Header: {} [{}]", name, values.collect::<Vec<_>>().join(", "));
         }
         info!("Body: {}", request.body().read());
         (true, 0)

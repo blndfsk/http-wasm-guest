@@ -332,7 +332,8 @@ mod tests {
 
             // Add tracking header
             request.header().add(b"X-Request-Id", format!("{}", count).as_bytes());
-
+            request.header().set(b"X-Foo", format!("{}", count).as_bytes());
+            request.header().remove(b"X-Foo");
             (true, count as i32)
         }
 

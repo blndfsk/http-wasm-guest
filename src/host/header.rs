@@ -124,7 +124,7 @@ mod tests {
         let header = Header::kind(0);
         let values = header.values(b"X-FOO");
         assert_eq!(values.len(), 1);
-        assert_eq!(&values[0], b"test1");
+        assert_eq!(values[0], b"test1");
     }
 
     #[test]
@@ -133,8 +133,8 @@ mod tests {
         // The mock has "x-bar" with values "test2" and "test3"
         let values = header.values(b"x-bar");
         assert_eq!(values.len(), 2);
-        assert_eq!(&values[0], b"test2");
-        assert_eq!(&values[1], b"test3");
+        assert_eq!(values[0], "test2");
+        assert_eq!(values[1], b"test3");
     }
 
     #[test]
@@ -152,9 +152,17 @@ mod tests {
         // Should have 3 distinct header names
         assert_eq!(values_map.len(), 3);
         // X-FOO should have 1 value
-        assert_eq!(values_map.get(&Bytes::from("X-FOO")).unwrap().len(), 1);
+        assert_eq!(values_map.get(b"X-FOO").unwrap().len(), 1);
         // x-bar should have 2 values
-        assert_eq!(values_map.get(&Bytes::from("x-bar")).map(|v| v.len()), Some(2));
+        assert_eq!(values_map.get(b"x-bar").map(|v| v.len()), Some(2));
+    }
+
+    #[test]
+    fn header_values_iter() {
+        let header = Header::kind(0);
+        let values = header.entries_iter();
+
+        assert_eq!(values.count(), 3);
     }
 
     #[test]

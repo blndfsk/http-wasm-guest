@@ -59,7 +59,7 @@ impl HostLogger {
     ///
     /// This is a convenience function for [`init_with_level`] using `Level::Info`.
     pub fn init() -> Result<(), SetLoggerError> {
-        set_global_logger(Level::Info)
+        HostLogger::init_with_level(Level::Info)
     }
 }
 
@@ -112,7 +112,7 @@ mod tests {
     fn test_init_with_level() {
         // Logger can only be set once globally, so we just verify it doesn't panic
         // and returns a result (either Ok or Err if already set)
-        let _result = HostLogger::init_with_level(Level::Info);
+        let _result = HostLogger::init();
         // If this is the first init, max_level should be Info
         // If logger was already set, this is still valid
     }

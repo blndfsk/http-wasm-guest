@@ -41,18 +41,66 @@ impl Display for Bytes {
     }
 }
 
-impl Borrow<str> for Bytes {
-    fn borrow(&self) -> &str {
-        match self.to_str() {
-            Ok(s) => s,
-            Err(e) => from_utf8(&self.0[..e.valid_up_to()]).unwrap_or_default(),
-        }
+impl Borrow<[u8]> for Bytes {
+    fn borrow(&self) -> &[u8] {
+        self.as_ref()
+    }
+}
+
+impl<const N: usize> Borrow<[u8; N]> for Bytes {
+    fn borrow(&self) -> &[u8; N] {
+        debug_assert!(self.len() == N);
+        // SAFETY: We verified that self.len() == N above, so the slice has exactly N elements.
+        // Casting from &[u8] to &[u8; N] is valid when the lengths match.
+        unsafe { &*(self.as_ref() as *const [u8] as *const [u8; N]) }
     }
 }
 
 impl<const N: usize> PartialEq<[u8; N]> for Bytes {
     fn eq(&self, other: &[u8; N]) -> bool {
         self.as_ref() == other
+    }
+}
+
+impl<const N: usize> PartialEq<Bytes> for [u8; N] {
+    fn eq(&self, other: &Bytes) -> bool {
+        self == other.as_ref()
+    }
+}
+
+impl<const N: usize> PartialEq<&[u8; N]> for Bytes {
+    fn eq(&self, other: &&[u8; N]) -> bool {
+        self == *other
+    }
+}
+
+// impl<const N: usize> PartialEq<Bytes> for &[u8; N] {
+//     fn eq(&self, other: &Bytes) -> bool {
+//         *self == other.as_ref()
+//     }
+// }
+
+impl PartialEq<str> for Bytes {
+    fn eq(&self, other: &str) -> bool {
+        match self.to_str() {
+            Ok(s) => s == other,
+            Err(_) => false,
+        }
+    }
+}
+
+impl PartialEq<&str> for Bytes {
+    fn eq(&self, other: &&str) -> bool {
+        match self.to_str() {
+            Ok(s) => s == *other,
+            Err(_) => false,
+        }
+    }
+}
+
+impl PartialEq<Bytes> for str {
+    fn eq(&self, other: &Bytes) -> bool {
+        self.as_bytes() == other.as_ref()
     }
 }
 
@@ -63,19 +111,26 @@ impl From<Box<[u8]>> for Bytes {
     }
 }
 
+/// Creates a `Bytes` value by copying a byte slice.
+impl From<&[u8]> for Bytes {
+    fn from(value: &[u8]) -> Self {
+        Self(value.to_vec().into_boxed_slice())
+    }
+}
+
+/// Creates a `Bytes` value by copying a byte slice.
+impl<const N: usize> From<&[u8; N]> for Bytes {
+    fn from(value: &[u8; N]) -> Self {
+        Self(Box::new(*value))
+    }
+}
+
 /// Creates a `Bytes` value by taking ownership of a byte vector.
 ///
 /// This avoids an extra copy by converting the `Vec<u8>` into a boxed slice.
 impl From<Vec<u8>> for Bytes {
     fn from(value: Vec<u8>) -> Self {
         Self(value.into_boxed_slice())
-    }
-}
-
-/// Creates a `Bytes` value by copying a byte slice.
-impl From<&[u8]> for Bytes {
-    fn from(value: &[u8]) -> Self {
-        Self(value.to_vec().into())
     }
 }
 
@@ -183,5 +238,54 @@ mod tests {
         let displayed = format!("{}", invalid);
         // The display should contain error info since it's invalid UTF-8
         assert!(!displayed.is_empty());
+    }
+
+    #[test]
+    fn bytes_partial_eq_u8() {
+        let a = b"test";
+        let b = Bytes::from(a);
+
+        assert!(b.eq(a));
+        assert!(a.eq(&b));
+    }
+
+    #[test]
+    fn bytes_partial_eq_str() {
+        let a = "test";
+        let b = Bytes::from(a);
+
+        assert!(b.eq(a));
+        assert!(&b.eq(a));
+        assert!(a.eq(&b));
+    }
+
+    #[test]
+    fn bytes_partial_str_invalid_bytes() {
+        let a = "test";
+        let b = Bytes::from(vec![0xFF, 0xFE]);
+
+        assert!(!b.eq(a));
+        assert!(!b.eq(&a));
+        assert!(!a.eq(&b));
+    }
+
+    #[test]
+    fn bytes_borrow() {
+        let a = b"test";
+        let b = Bytes::from(a);
+        let set: HashSet<Bytes> = HashSet::from([Bytes::from(a)]);
+        assert!(set.contains(a));
+        assert!(set.contains(&b));
+
+        assert_eq!(set.get(&b[..]), Some(&b));
+        assert_eq!(set.get(&b), Some(&b));
+        assert_eq!(set.get(a), Some(&b));
+    }
+
+    #[test]
+    fn bytes_borrow_unknown_key() {
+        let a = b"xxx";
+        let set: HashSet<Bytes> = HashSet::from([Bytes::from(b"test")]);
+        assert!(!set.contains(a));
     }
 }
