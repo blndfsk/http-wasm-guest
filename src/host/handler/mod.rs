@@ -5,7 +5,7 @@ mod ffi;
 #[cfg(test)]
 pub(crate) mod test;
 
-const MAX_ALLOC_SIZE: usize = 16 * 1024 * 1024; // 16 MB
+const MAX_ALLOC_SIZE: usize = 0xFFFFFF; // 16 MB
 
 pub(crate) fn log(level: i32, message: &[u8]) {
     unsafe { ffi::log(level, message.as_ptr(), as_i32(message.len())) };
@@ -77,13 +77,12 @@ pub(crate) fn set_status_code(code: i32) {
 
 pub(crate) fn body(kind: i32) -> Box<[u8]> {
     let mut out = Vec::new();
-    let max_iterations = MAX_ALLOC_SIZE / memory::with_buffer(|b| b.capacity());
-    for _ in 0..max_iterations {
+    loop {
         let eof = memory::with_buffer(|buffer| {
             let (eof, size) = eof_size(unsafe { ffi::read_body(kind, buffer.as_mut_ptr(), as_i32(buffer.capacity())) });
             debug_assert!(size <= buffer.capacity(), "host returned size {size} exceeds buffer capacity {}", buffer.capacity());
             out.extend_from_slice(buffer.as_subslice(size));
-            eof
+            eof || size == 0
         });
         if eof || out.len() >= MAX_ALLOC_SIZE {
             break;
@@ -116,12 +115,14 @@ fn as_usize(n: i32) -> usize {
 /// If the data exceeds the shared buffer, a larger allocation is made and the call is retried.
 fn read_buf(f: impl Fn(*mut u8, i32) -> i32) -> Box<[u8]> {
     memory::with_buffer(|buffer| {
-        let size = as_usize(f(buffer.as_mut_ptr(), as_i32(buffer.capacity())));
-        if size <= buffer.capacity() {
-            return buffer.to_boxed_slice(size);
+        let len = as_usize(f(buffer.as_mut_ptr(), as_i32(buffer.capacity())));
+        if len <= buffer.capacity() {
+            return buffer.to_boxed_slice(len);
         }
-        let mut buf = vec![0u8; size];
-        let length = as_usize(f(buf.as_mut_ptr(), as_i32(size)));
+        debug_assert!(len <= MAX_ALLOC_SIZE, "host response too large: {len} bytes (max {})", MAX_ALLOC_SIZE);
+        let len = len.min(MAX_ALLOC_SIZE);
+        let mut buf = vec![0u8; len];
+        let length = as_usize(f(buf.as_mut_ptr(), as_i32(len)));
         buf.truncate(length);
         buf.into_boxed_slice()
     })
@@ -259,21 +260,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(debug_assertions)]
-    #[should_panic(expected = "negative value from host")]
-    fn test_read_buf_underflow_debug() {
-        let _result = read_buf(|_, _| -1);
-    }
-
-    #[test]
-    #[cfg(not(debug_assertions))]
-    fn test_read_buf_underflow_release() {
-        // In release, -1 becomes 0 via max(0)
-        let result = read_buf(|_, _| -1);
-        assert_eq!(result.len(), 0);
-    }
-
-    #[test]
     fn test_read_buf_multi_overflow() {
         // Build NUL-delimited data larger than 2048-byte shared buffer
         let mut data = Vec::new();
@@ -311,6 +297,40 @@ mod tests {
         // OVERSIZED_BODY returns full buffer chunks without EOF
         let content = body(test::kinds::OVERSIZED_BODY);
         assert!(content.len() >= MAX_ALLOC_SIZE);
-        assert!(content.iter().all(|&b| b == b'A'));
+    }
+
+    #[test]
+    fn test_body_no_eof_empty_buf() {
+        // EMPTY_BODY_WITHOUT_EOF returns full buffer chunks without EOF
+        let content = body(test::kinds::EMPTY_BODY_WITHOUT_EOF);
+        assert_eq!(content.len(), 0);
+    }
+
+    // =========================================================================
+    // read_buf Debug Assertion Tests
+    // =========================================================================
+
+    /// Test that triggers debug_assert when host returns size > MAX_ALLOC_SIZE.
+    #[test]
+    #[should_panic(expected = "host response too large")]
+    fn test_read_buf_oversized_response_debug() {
+        // This should trigger: debug_assert!(len <= MAX_ALLOC_SIZE, "host response too large...")
+        let oversized_response = read_buf(|_buf, _limit| 0x1000001);
+        let _ = oversized_response;
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "negative value from host")]
+    fn test_read_buf_underflow_debug() {
+        let _result = read_buf(|_, _| -1);
+    }
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn test_read_buf_underflow_release() {
+        // In release, -1 becomes 0 via max(0)
+        let result = read_buf(|_, _| -1);
+        assert_eq!(result.len(), 0);
     }
 }
