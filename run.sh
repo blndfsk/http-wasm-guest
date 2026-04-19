@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
+pod=$(podman pod create -p 8080:8080)
+plugin=$1
+
 function cleanup()
 {
     podman pod rm -f $pod
@@ -9,7 +12,6 @@ function cleanup()
 
 trap 'cleanup' EXIT HUP INT TERM
 
-plugin=$1
 cargo build --target wasm32-wasip1 --example $plugin
 
 container=$(buildah from traefik:v3.6)
@@ -20,7 +22,6 @@ buildah config --workingdir "/opt/traefik" $container
 buildah commit $container localhost/$plugin
 buildah rm $container
 
-pod=$(podman pod create -p 8080:8080)
 podman run -d --pod $pod --replace --name whoami \
     --label 'traefik.http.routers.whoami.rule=Host(`whoami.localhost`)' \
     --label "traefik.http.routers.whoami.middlewares=$plugin" \

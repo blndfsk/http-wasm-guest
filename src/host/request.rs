@@ -1,8 +1,10 @@
 use crate::host::{Body, Bytes, Header, handler};
 /// Handle for accessing and mutating the current HTTP request.
 pub struct Request {
-    header: Header,
-    body: Body,
+    /// Handle for accessing and mutating request headers.
+    pub header: Header,
+    /// Handle for reading or writing the request body.
+    pub body: Body,
 }
 const KIND_REQ: i32 = 0;
 
@@ -51,11 +53,13 @@ impl Request {
     }
 
     /// Return a handle for accessing and mutating request headers.
+    #[deprecated(since = "0.11.2", note = "use the `header` field directly instead")]
     pub fn header(&self) -> &Header {
         &self.header
     }
 
     /// Return a handle for reading or writing the request body.
+    #[deprecated(since = "0.11.2", note = "use the `body` field directly instead")]
     pub fn body(&self) -> &Body {
         &self.body
     }
@@ -101,7 +105,7 @@ mod tests {
     #[test]
     fn request_header_access() {
         let request = Request::new();
-        let header = request.header();
+        let header = request.header;
         // The mock provides headers: X-FOO, x-bar, x-baz
         let names: Vec<_> = header.names_iter().collect();
         assert_eq!(names.len(), 3);
@@ -110,7 +114,7 @@ mod tests {
     #[test]
     fn request_body_access() {
         let request = Request::new();
-        let body = request.body();
+        let body = request.body;
         let content = body.read();
         // The mock returns "<html><body>test</body>"
         assert!(content.to_str().unwrap().contains("html"));

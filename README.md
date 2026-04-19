@@ -19,9 +19,10 @@ It is designed for writing Traefik plugins in Rust, and works with any http-wasm
 
 ## Caveat
 
-To avoid heap allocations on hot paths (logging, reading from the host), buffers are preallocated.
+To avoid heap allocations on hot paths (logging, reading from the host), buffers are preallocated and reused.
 For reading large payloads, an overflow path is implemented that allocates the needed buffer on the heap.
 Log messages are formatted into a fixed-size 2048-byte static buffer; messages exceeding this limit will be truncated.
+Large bodies are limited to 16MB, 
 
 ## Credits
 
@@ -46,7 +47,7 @@ struct Plugin {}
 
 impl Guest for Plugin {
     fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
-        request.header().add(b"X-Custom-Header", b"FooBar");
+        request.header.add(b"X-Custom-Header", b"FooBar");
         (true, 0)
     }
 }
