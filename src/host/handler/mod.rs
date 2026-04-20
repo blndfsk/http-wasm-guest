@@ -97,20 +97,6 @@ pub(crate) fn write_body(kind: i32, body: &[u8]) {
     }
 }
 
-/// Converts a `usize` to `i32` for the FFI boundary. In debug builds, panics on values
-/// larger than i32::MAX, which is impossible to trigger in wasm environment
-fn as_i32(n: usize) -> i32 {
-    debug_assert!(n <= i32::MAX as usize, "value exceeds i32::MAX");
-    n as i32
-}
-
-/// Validates i32→usize conversion. In debug builds, panics on negative values
-/// indicating host protocol violations. In release builds, clamps to 0.
-fn as_usize(n: i32) -> usize {
-    debug_assert!(n >= 0, "negative value from host");
-    n.max(0) as usize
-}
-
 /// Calls an FFI function that writes into a buffer and returns the actual size.
 /// If the data exceeds the shared buffer, a larger allocation is made and the call is retried.
 fn read_buf(f: impl Fn(*mut u8, i32) -> i32) -> Box<[u8]> {
@@ -149,6 +135,22 @@ fn split(buf: &[u8], count: usize, len: usize) -> Vec<Box<[u8]>> {
     let out: Vec<Box<[u8]>> = buf[..len].split(|&b| b == 0).filter(|s| !s.is_empty()).map(Box::from).collect();
     debug_assert_eq!(count, out.len(), "split count mismatch: host reported {count} items but found {}", out.len());
     out
+}
+
+/// Converts a `usize` to `i32` for the FFI boundary. In debug builds, panics on values
+/// larger than i32::MAX, which is impossible to trigger in wasm environment
+#[inline]
+fn as_i32(n: usize) -> i32 {
+    debug_assert!(n <= i32::MAX as usize, "value exceeds i32::MAX");
+    n as i32
+}
+
+/// Validates i32→usize conversion. In debug builds, panics on negative values
+/// indicating host protocol violations. In release builds, clamps to 0.
+#[inline]
+fn as_usize(n: i32) -> usize {
+    debug_assert!(n >= 0, "negative value from host");
+    n.max(0) as usize
 }
 
 fn eof_size(n: i64) -> (bool, usize) {
