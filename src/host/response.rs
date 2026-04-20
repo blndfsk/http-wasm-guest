@@ -1,8 +1,10 @@
 use crate::host::{Body, Header, handler};
 /// Handle for accessing and mutating the current HTTP response.
 pub struct Response {
-    header: Header,
-    body: Body,
+    /// Handle for accessing and mutating response headers.
+    pub header: Header,
+    /// Handle for reading or writing the response body.
+    pub body: Body,
 }
 const KIND_RES: i32 = 1;
 
@@ -24,11 +26,13 @@ impl Response {
     }
 
     /// Return a handle for accessing and mutating response headers.
+    #[deprecated(since = "0.11.2", note = "use the `header` field directly instead")]
     pub fn header(&self) -> &Header {
         &self.header
     }
 
     /// Return a handle for reading or writing the response body.
+    #[deprecated(since = "0.11.2", note = "use the `body` field directly instead")]
     pub fn body(&self) -> &Body {
         &self.body
     }
@@ -41,7 +45,7 @@ mod tests {
     #[test]
     fn test_body() {
         let r = Response::new();
-        let sut = r.body().read();
+        let sut = r.body.read();
         assert!(!sut.is_empty());
         assert!(sut.starts_with(b"<html>"));
     }
@@ -63,7 +67,7 @@ mod tests {
     #[test]
     fn response_header_access() {
         let response = Response::new();
-        let header = response.header();
+        let header = response.header;
         // Response headers use kind=1, should still work
         let _ = header.names_iter();
     }
@@ -71,7 +75,7 @@ mod tests {
     #[test]
     fn response_body_read() {
         let response = Response::new();
-        let body = response.body();
+        let body = response.body;
         let content = body.read();
         // The mock returns HTML content
         assert!(!content.is_empty());
@@ -80,7 +84,7 @@ mod tests {
     #[test]
     fn response_body_write() {
         let response = Response::new();
-        let body = response.body();
+        let body = response.body;
         // Should not panic - mock accepts any body
         body.write(b"<html><body>Custom Response</body></html>");
     }

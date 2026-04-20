@@ -16,11 +16,11 @@ impl Guest for Plugin {
     /// Handles incoming requests by logging metadata and headers.
     fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
         info!("Request: {} {} {} {}", request.method(), request.version(), request.uri(), request.source_addr());
-        for (name, values) in request.header().entries_iter() {
+        for (name, values) in request.header.entries_iter() {
             let values = values.iter().map(|v| format!("{v}")).collect::<Vec<_>>().join(", ");
             info!("Header: {} [{}]", name, values);
         }
-        info!("Body: {}", request.body().read());
+        info!("Body: {}", request.body.read());
         (true, 0)
     }
     /// Handles outgoing responses by logging status and body.

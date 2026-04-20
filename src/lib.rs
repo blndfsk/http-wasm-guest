@@ -242,7 +242,7 @@ mod tests {
             for blocked in &self.blocked_paths {
                 if uri_str.contains(blocked) {
                     response.set_status(403);
-                    response.body().write(b"Forbidden");
+                    response.body.write(b"Forbidden");
                     return (false, 0);
                 }
             }
@@ -280,7 +280,7 @@ mod tests {
         fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
             let config = admin::config();
             if config.to_str().unwrap_or("").contains("config") {
-                request.header().add(b"X-Config-Loaded", b"true");
+                request.header.add(b"X-Config-Loaded", b"true");
             }
             (true, 0)
         }
@@ -331,16 +331,16 @@ mod tests {
             let _source = request.source_addr();
 
             // Add tracking header
-            request.header().add(b"X-Request-Id", format!("{}", count).as_bytes());
-            request.header().set(b"X-Foo", format!("{}", count).as_bytes());
-            request.header().remove(b"X-Foo");
+            request.header.add(b"X-Request-Id", format!("{}", count).as_bytes());
+            request.header.set(b"X-Foo", format!("{}", count).as_bytes());
+            request.header.remove(b"X-Foo");
             (true, count as i32)
         }
 
         fn handle_response(&self, req_ctx: i32, _request: &Request, response: &Response, is_error: bool) {
             if !is_error {
-                response.header().set(b"X-Processed-By", b"FullCyclePlugin");
-                response.header().add(b"X-Request-Context", format!("{}", req_ctx).as_bytes());
+                response.header.set(b"X-Processed-By", b"FullCyclePlugin");
+                response.header.add(b"X-Request-Context", format!("{}", req_ctx).as_bytes());
             }
         }
     }

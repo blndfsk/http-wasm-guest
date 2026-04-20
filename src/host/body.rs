@@ -18,6 +18,14 @@ impl Body {
     /// Read the entire body into memory and return it as [`Bytes`].
     ///
     /// This returns the buffered payload when body buffering is enabled by the host.
+    ///
+    /// `feature::BufferRequest` is required to read without consuming the request body.
+    /// To enable it, call `admin::enable(BufferRequest)` before returning from handle_request.
+    /// Otherwise, the next handler may panic attempting to read the request body because it was already read.
+    ///
+    /// `feature::BufferResponse` is required to read the response body produced by the next handler defined
+    /// on the host inside handle_response. To enable it, call `admin::enable(BufferResponse)` beforehand.
+    /// Otherwise, the guest may read EOF because the downstream handler already consumed it.
     pub fn read(&self) -> Bytes {
         Bytes::from(handler::body(self.0))
     }
