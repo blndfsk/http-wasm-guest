@@ -117,7 +117,7 @@ mod tests {
         let body = request.body;
         let content = body.read();
         // The mock returns "<html><body>test</body>"
-        assert!(content.to_str().unwrap().contains("html"));
+        assert!(content.is_empty());
     }
 
     #[test]

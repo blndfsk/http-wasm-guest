@@ -36,8 +36,11 @@ jobs:
       - name: Run rustfmt
         run: cargo fmt --all --check
 
-      - name: Run tests
+      - name: Run tests(debug)
         run: cargo test --lib
+
+      - name: Run tests(release)
+        run: cargo test --lib --release
 
       - name: Run doctests
         run: cargo test --doc

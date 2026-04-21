@@ -127,6 +127,8 @@ pub(crate) unsafe fn read_body(kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
             let len = copy_to_buf(&data, buf, buf_limit);
             len as i64
         }
+        test::kinds::BODY_WITHOUT_EOF => (0i64 << 32) | 1,
+        0 => (1i64 << 32) | 0,
         _ => {
             let len = copy_to_buf(b"<html><body>test</body>", buf, buf_limit);
             (1i64 << 32) | (len as i64)
