@@ -21,8 +21,8 @@ It is designed for writing Traefik plugins in Rust, and works with any http-wasm
 
 To avoid heap allocations on hot paths (logging, reading from the host), buffers are preallocated and reused.
 For reading large payloads, an overflow path is implemented that allocates the needed buffer on the heap.
+The maximum size of these buffers is 16MB, values larger are truncated.
 Log messages are formatted into a fixed-size 2048-byte static buffer; messages exceeding this limit will be truncated.
-Large bodies are limited to 16MB, 
 
 ## Credits
 

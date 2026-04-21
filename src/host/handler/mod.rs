@@ -131,8 +131,18 @@ fn read_buf_multi(f: impl Fn(*mut u8, i32) -> i64) -> Vec<Box<[u8]>> {
     })
 }
 
+/// splits a buffer with NUL-terminated parts into a Vec
 fn split(buf: &[u8], count: usize, len: usize) -> Vec<Box<[u8]>> {
-    let out: Vec<Box<[u8]>> = buf[..len].split(|&b| b == 0).filter(|s| !s.is_empty()).map(Box::from).collect();
+    let mut out = Vec::with_capacity(count);
+
+    let mut start: usize = 0;
+    for (i, n) in buf[..len].iter().enumerate() {
+        if *n == b'\0' {
+            out.push(Box::from(&buf[start..i]));
+            start = i + 1; // skip NUL byte
+        }
+    }
+
     debug_assert_eq!(count, out.len(), "split count mismatch: host reported {count} items but found {}", out.len());
     out
 }
@@ -234,8 +244,16 @@ mod tests {
     #[test]
     fn test_split_nul_empty_elem() {
         let data = b"\0test1\0\0test2\0";
+        let result = split(data, 4, data.len());
+        assert_eq!(result.len(), 4);
+    }
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn test_split_missing_nul_at_end() {
+        let data = b"test1\0test2";
         let result = split(data, 2, data.len());
-        assert_eq!(result.len(), 2);
+        assert_eq!(result.len(), 1);
     }
 
     // =========================================================================
@@ -262,6 +280,14 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(debug_assertions))]
+    fn test_read_buf_underflow_release() {
+        // In release, -1 becomes 0 via max(0)
+        let result = read_buf(|_, _| -1);
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
     fn test_read_buf_multi_overflow() {
         // Build NUL-delimited data larger than 2048-byte shared buffer
         let mut data = Vec::new();
@@ -285,15 +311,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(debug_assertions)]
-    #[should_panic(expected = "split count mismatch: host reported 5 items but found 3")]
-    fn test_split_count_mismatch() {
-        // count=5 but data only contains 3 items → debug_assert fires
-        let data = b"one\0two\0three\0";
-        split(data, 5, data.len());
-    }
-
-    #[test]
     #[cfg_attr(miri, ignore)]
     fn test_body_max_size_limit() {
         // OVERSIZED_BODY returns full buffer chunks without EOF
@@ -314,6 +331,7 @@ mod tests {
 
     /// Test that triggers debug_assert when host returns size > MAX_ALLOC_SIZE.
     #[test]
+    #[cfg(debug_assertions)]
     #[should_panic(expected = "host response too large")]
     fn test_read_buf_oversized_response_debug() {
         // This should trigger: debug_assert!(len <= MAX_ALLOC_SIZE, "host response too large...")
@@ -329,10 +347,19 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(debug_assertions))]
-    fn test_read_buf_underflow_release() {
-        // In release, -1 becomes 0 via max(0)
-        let result = read_buf(|_, _| -1);
-        assert_eq!(result.len(), 0);
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "split count mismatch: host reported 5 items but found 3")]
+    fn test_split_count_mismatch() {
+        // count=5 but data only contains 3 items → debug_assert fires
+        let data = b"one\0two\0three\0";
+        let _result = split(data, 5, data.len());
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "split count mismatch: host reported 2 items but found 1")]
+    fn test_split_missing_nul_at_end() {
+        let data = b"test1\0test2";
+        let _result = split(data, 2, data.len());
     }
 }

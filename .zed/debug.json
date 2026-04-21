@@ -4,13 +4,12 @@
 // see: https://zed.dev/docs/debugger
 [
   {
-    "label": "Build & Debug native binary",
     "adapter": "CodeLLDB",
+    "label": "Build & Debug native binary",
+    "sourceLanguages": ["rust"],
     "build": {
       "command": "cargo",
       "args": ["build", "--lib"],
     },
-    // sourceLanguages is required for CodeLLDB (not GDB) when using Rust
-    "sourceLanguages": ["rust"],
   },
 ]
