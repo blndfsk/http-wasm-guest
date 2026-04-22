@@ -51,7 +51,7 @@ impl Borrow<[u8]> for Bytes {
 
 impl<const N: usize> Borrow<[u8; N]> for Bytes {
     fn borrow(&self) -> &[u8; N] {
-        debug_assert!(self.len() == N);
+        debug_assert!(self.len() == N, "mismatching types: expected [u8; {}], got [u8; {N}]", self.len());
         // SAFETY: We verified that self.len() == N above, so the slice has exactly N elements.
         // Casting from &[u8] to &[u8; N] is valid when the lengths match.
         unsafe { &*(self.as_ref() as *const [u8] as *const [u8; N]) }
@@ -303,5 +303,13 @@ mod tests {
         let a = b"xxx";
         let set: HashSet<Bytes> = HashSet::from([Bytes::from(b"test")]);
         assert!(!set.contains(a));
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "mismatching types")]
+    fn bytes_borrow_wrong_type() {
+        let b = Bytes::from(b"test");
+        let _: [u8; 8] = *b.borrow();
     }
 }

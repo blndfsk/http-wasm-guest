@@ -48,7 +48,7 @@ impl Buffer {
     }
 
     #[inline]
-    pub(crate) fn capacity(&self) -> usize {
+    pub(crate) const fn capacity(&self) -> usize {
         SIZE
     }
 

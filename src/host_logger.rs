@@ -35,37 +35,34 @@ impl Log for HostLogger {
 fn format_log_message(buf: &mut memory::Buffer, args: &std::fmt::Arguments) -> usize {
     let capacity = buf.capacity();
     let mut slice = buf.as_mut_slice();
-    let result = write!(slice, "{}", args);
-    let mut written = capacity - slice.len();
-    // If the message could not be written fully, apply truncation marker
-    if result.is_err() {
-        let start = capacity - TRUNC_MARKER.len();
-        let slice = buf.as_mut_slice();
-        slice[start..].copy_from_slice(TRUNC_MARKER);
-        written = buf.capacity();
+    match write!(slice, "{}", args) {
+        Ok(()) => capacity - slice.len(),
+        Err(_) => {
+            let start = capacity - TRUNC_MARKER.len();
+            let slice = buf.as_mut_slice();
+            slice[start..].copy_from_slice(TRUNC_MARKER);
+            buf.capacity()
+        }
     }
-    written
 }
 
 impl HostLogger {
-    /// Initialize the host-backed logger with a specific maximum level.
-    ///
-    /// This registers a HostLogger implementation for forwarding log records to the http-wasm host.
-    pub fn init_with_level(level: Level) -> Result<(), SetLoggerError> {
-        set_global_logger(level)
-    }
-
     /// Initialize the host-backed logger with the default Info level.
     ///
     /// This is a convenience function for [`init_with_level`] using `Level::Info`.
+    #[inline]
     pub fn init() -> Result<(), SetLoggerError> {
         HostLogger::init_with_level(Level::Info)
     }
-}
 
-fn set_global_logger(level: Level) -> Result<(), SetLoggerError> {
-    log::set_max_level(max_level(level.to_level_filter()));
-    log::set_logger(&LOGGER)
+    /// Initialize the host-backed logger with a specific maximum level.
+    ///
+    /// This registers a HostLogger implementation for forwarding log records to the http-wasm host.
+    #[inline]
+    pub fn init_with_level(level: Level) -> Result<(), SetLoggerError> {
+        log::set_max_level(max_level(level.to_level_filter()));
+        log::set_logger(&LOGGER)
+    }
 }
 
 /// Determine the max_log_level as configured by the host.

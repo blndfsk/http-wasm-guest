@@ -1,5 +1,3 @@
-#![warn(missing_docs)]
-
 //! HTTP WebAssembly guest library for building `http-wasm` plugins.
 //!
 //! This crate exposes a guest-facing API for inspecting and mutating HTTP

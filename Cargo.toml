@@ -8,6 +8,7 @@ license = "MIT"
 documentation = "https://docs.rs/http-wasm-guest"
 keywords = ["http-wasm", "wasm", "http", "plugin", "traefik"]
 categories = ["wasm", "web-programming"]
+rust-version = "1.85.1"
 
 [dependencies]
 log = { version = "0.4", optional = true }
@@ -15,6 +16,13 @@ log = { version = "0.4", optional = true }
 [features]
 default = ["log"]
 log = ["dep:log"]
+
+[lints.rust]
+missing_docs = "warn"
+
+[lints.clippy]
+cargo = "warn"
+missing_assert_message = "warn"
 
 [[example]]
 name = "info"
