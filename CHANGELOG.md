@@ -1,3 +1,21 @@
+## v0.11.2
+
+### API Changes
+- `.header()` and `.body()` can now be accessed as fields (`.header`, `.body`)
+
+### Bug Fixes
+- Safeguard against ffi::read_body returning size 0 without EOF marker
+- Added safeguard against host responses exceeding 16MB
+
+### Improvements
+- Inlined FFI conversion helpers for performance
+- Enhanced `Body::read()` documentation with feature flag requirements
+- Added comprehensive project documentation (Copilot instructions)
+
+### Testing
+- Added tests for empty body and oversized response edge cases
+- Updated examples to use new field access syntax
+
 ## v0.11.1
 
 ### Features
