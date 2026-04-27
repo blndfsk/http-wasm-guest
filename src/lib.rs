@@ -329,8 +329,8 @@ mod tests {
             let _source = request.source_addr();
 
             // Add tracking header
-            request.header.add(b"X-Request-Id", format!("{}", count).as_bytes());
-            request.header.set(b"X-Foo", format!("{}", count).as_bytes());
+            request.header.add(b"X-Request-Id", &format!("{}", count).into_bytes());
+            request.header.set(b"X-Foo", &format!("{}", count).into_bytes());
             request.header.remove(b"X-Foo");
             (true, count as i32)
         }
@@ -338,7 +338,7 @@ mod tests {
         fn handle_response(&self, req_ctx: i32, _request: &Request, response: &Response, is_error: bool) {
             if !is_error {
                 response.header.set(b"X-Processed-By", b"FullCyclePlugin");
-                response.header.add(b"X-Request-Context", format!("{}", req_ctx).as_bytes());
+                response.header.add(b"X-Request-Context", &format!("{}", req_ctx).into_bytes());
             }
         }
     }

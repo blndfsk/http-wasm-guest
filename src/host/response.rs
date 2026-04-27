@@ -11,7 +11,7 @@ const KIND_RES: i32 = 1;
 impl Response {
     /// Creates a new `Response` instance with header and body handles.
     pub(crate) fn new() -> Self {
-        Self { header: Header::kind(KIND_RES), body: Body::kind(KIND_RES) }
+        Self { header: Header::new(KIND_RES), body: Body::new(KIND_RES) }
     }
     /// Return the current response status code.
     pub fn status(&self) -> i32 {

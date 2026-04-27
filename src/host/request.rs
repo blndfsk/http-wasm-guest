@@ -11,7 +11,7 @@ const KIND_REQ: i32 = 0;
 impl Request {
     /// Creates a new `Request` instance with header and body handles.
     pub(crate) fn new() -> Self {
-        Self { header: Header::kind(KIND_REQ), body: Body::kind(KIND_REQ) }
+        Self { header: Header::new(KIND_REQ), body: Body::new(KIND_REQ) }
     }
 
     /// Return the client source address (ip:port) as raw bytes.
