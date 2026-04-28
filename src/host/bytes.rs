@@ -59,27 +59,27 @@ impl<const N: usize> Borrow<[u8; N]> for Bytes {
 }
 
 // --- Comparison Trait Implementations ---
-impl PartialEq<[u8]> for Bytes {
-    fn eq(&self, other: &[u8]) -> bool {
-        self.0.as_ref() == other
-    }
-}
-
 impl PartialEq<Bytes> for [u8] {
     fn eq(&self, other: &Bytes) -> bool {
         self == other.0.as_ref()
     }
 }
 
-impl PartialEq<&[u8]> for Bytes {
-    fn eq(&self, other: &&[u8]) -> bool {
-        self.0.as_ref() == *other
+impl PartialEq<[u8]> for Bytes {
+    fn eq(&self, other: &[u8]) -> bool {
+        self.0.as_ref() == other
     }
 }
 
-impl PartialEq<&Bytes> for [u8] {
-    fn eq(&self, other: &&Bytes) -> bool {
-        self == other.0.as_ref()
+impl PartialEq<Bytes> for &[u8] {
+    fn eq(&self, other: &Bytes) -> bool {
+        *self == other.0.as_ref()
+    }
+}
+
+impl PartialEq<&[u8]> for Bytes {
+    fn eq(&self, other: &&[u8]) -> bool {
+        self.0.as_ref() == *other
     }
 }
 
@@ -100,10 +100,9 @@ impl<const N: usize> PartialEq<&[u8; N]> for Bytes {
         self.0.as_ref() == *other
     }
 }
-
-impl<const N: usize> PartialEq<&Bytes> for [u8; N] {
-    fn eq(&self, other: &&Bytes) -> bool {
-        self == other.0.as_ref()
+impl<const N: usize> PartialEq<Bytes> for &[u8; N] {
+    fn eq(&self, other: &Bytes) -> bool {
+        *self == other.0.as_ref()
     }
 }
 
@@ -130,12 +129,12 @@ impl PartialEq<Bytes> for str {
         self.as_bytes() == other
     }
 }
-
-impl PartialEq<&Bytes> for str {
-    fn eq(&self, other: &&Bytes) -> bool {
-        self.as_bytes() == *other
+impl PartialEq<Bytes> for &str {
+    fn eq(&self, other: &Bytes) -> bool {
+        self.as_bytes() == other
     }
 }
+
 // --- Conversion Trait Implementations (From<...> for Bytes) ---
 
 /// Creates a `Bytes` value from an existing boxed slice without copying.
@@ -299,23 +298,36 @@ mod tests {
     }
 
     #[test]
-    fn bytes_partial_eq_str() {
+    fn slice_eq_bytes() {
+        let slice: &[u8] = &vec![1, 2, 3, 4][..];
+        let bytes = Bytes::from(vec![1, 2, 3, 4]);
+        assert_eq!(slice, bytes);
+        assert_eq!(&*slice, &bytes);
+
+        assert!(bytes.eq(slice));
+        assert!(bytes.eq(&slice));
+        assert!(&bytes.eq(slice));
+        assert!(slice.eq(&bytes));
+    }
+
+    #[test]
+    fn array_slice_eq_bytes() {
+        let arr: &[u8; 4] = &[1, 2, 3, 4];
+        let bytes = Bytes::from(vec![1, 2, 3, 4]);
+        assert!(bytes.eq(&arr));
+        assert!(&bytes.eq(&arr));
+        assert!(arr.eq(&bytes));
+        assert_eq!(arr, bytes);
+    }
+
+    #[test]
+    fn str_slice_eq_bytes() {
         let str = "test";
-        let slice = b"test".as_slice();
-        let arr: [u8; 4] = [0x74, 0x65, 0x73, 0x74];
-        let b = Bytes::from(str);
-
-        assert!(b.eq(slice));
-        assert!(&b.eq(slice));
-        assert!(slice.eq(&b));
-
-        assert!(b.eq(str));
-        assert!(&b.eq(str));
-        assert!(str.eq(&b));
-
-        assert!(b.eq(&arr));
-
-        assert!(arr.eq(&b));
+        let bytes = Bytes::from("test");
+        assert_eq!(str, bytes);
+        assert!(bytes.eq(str));
+        assert!(&bytes.eq(str));
+        assert!(str.eq(&bytes));
     }
 
     #[test]
