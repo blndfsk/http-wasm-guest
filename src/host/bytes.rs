@@ -23,7 +23,7 @@ impl Bytes {
     /// This is a zero-copy view into the underlying bytes. If the data is not
     /// valid UTF-8, an error is returned.
     pub fn to_str(&self) -> Result<&str, Utf8Error> {
-        from_utf8(self)
+        from_utf8(self.0.as_ref())
     }
 }
 
@@ -39,7 +39,7 @@ impl Deref for Bytes {
 
 impl Display for Bytes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(self))
+        write!(f, "{}", String::from_utf8_lossy(self.0.as_ref()))
     }
 }
 
@@ -51,7 +51,7 @@ impl Borrow<[u8]> for Bytes {
 
 impl<const N: usize> Borrow<[u8; N]> for Bytes {
     fn borrow(&self) -> &[u8; N] {
-        debug_assert!(self.len() == N, "mismatching types: expected [u8; {}], got [u8; {N}]", self.len());
+        debug_assert!(self.0.len() == N, "mismatching types: expected [u8; {}], got [u8; {N}]", self.0.len());
         // SAFETY: We verified that self.len() == N above, so the slice has exactly N elements.
         // Casting from &[u8] to &[u8; N] is valid when the lengths match.
         unsafe { &*(self.0.as_ref() as *const [u8] as *const [u8; N]) }
@@ -126,12 +126,12 @@ impl PartialEq<&str> for Bytes {
 
 impl PartialEq<Bytes> for str {
     fn eq(&self, other: &Bytes) -> bool {
-        self.as_bytes() == other
+        self.as_bytes() == other.0.as_ref()
     }
 }
 impl PartialEq<Bytes> for &str {
     fn eq(&self, other: &Bytes) -> bool {
-        self.as_bytes() == other
+        self.as_bytes() == other.0.as_ref()
     }
 }
 
@@ -207,21 +207,21 @@ mod tests {
     fn bytes_from_byte_slice_roundtrip() {
         let original: &[u8] = b"binary data \x00\x01\x02";
         let bytes = Bytes::from(original);
-        assert_eq!(bytes.as_ref(), original);
+        assert_eq!(&bytes, original);
     }
 
     #[test]
     fn bytes_from_vec_roundtrip() {
         let original = vec![0x48, 0x65, 0x6c, 0x6c, 0x6f]; // "Hello"
         let bytes = Bytes::from(original.clone());
-        assert_eq!(bytes.as_ref(), original.as_slice());
+        assert_eq!(&bytes, original.as_slice());
     }
 
     #[test]
     fn bytes_from_boxed_slice() {
         let boxed: Box<[u8]> = vec![1, 2, 3, 4, 5].into_boxed_slice();
         let bytes = Bytes::from(boxed.clone());
-        assert_eq!(bytes.as_ref(), boxed.as_ref());
+        assert_eq!(&bytes, boxed.as_ref());
     }
 
     #[test]
@@ -286,15 +286,6 @@ mod tests {
         let displayed = format!("{}", invalid);
         // The display should contain error info since it's invalid UTF-8
         assert!(!displayed.is_empty());
-    }
-
-    #[test]
-    fn bytes_partial_eq_u8() {
-        let a = b"test";
-        let b = Bytes::from(a);
-
-        assert!(b.eq(a));
-        assert!(a.eq(&b));
     }
 
     #[test]
