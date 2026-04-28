@@ -152,9 +152,9 @@ mod tests {
         // Should have 3 distinct header names
         assert_eq!(values_map.len(), 3);
         // X-FOO should have 1 value
-        assert_eq!(values_map.get(b"X-FOO").unwrap().len(), 1);
+        assert_eq!(values_map.get(&Bytes::from("X-FOO")).unwrap().len(), 1);
         // x-bar should have 2 values
-        assert_eq!(values_map.get(b"x-bar").map(|v| v.len()), Some(2));
+        assert_eq!(values_map.get(&Bytes::from(b"x-bar")).map(|v| v.len()), Some(2));
     }
 
     #[test]

@@ -49,15 +49,6 @@ impl Borrow<[u8]> for Bytes {
     }
 }
 
-impl<const N: usize> Borrow<[u8; N]> for Bytes {
-    fn borrow(&self) -> &[u8; N] {
-        debug_assert!(self.0.len() == N, "mismatching types: expected [u8; {}], got [u8; {N}]", self.0.len());
-        // SAFETY: We verified that self.len() == N above, so the slice has exactly N elements.
-        // Casting from &[u8] to &[u8; N] is valid when the lengths match.
-        unsafe { &*(self.0.as_ref() as *const [u8] as *const [u8; N]) }
-    }
-}
-
 // --- Comparison Trait Implementations ---
 impl PartialEq<Bytes> for [u8] {
     fn eq(&self, other: &Bytes) -> bool {
@@ -336,26 +327,9 @@ mod tests {
         let a = b"test";
         let b = Bytes::from(a);
         let set: HashSet<Bytes> = HashSet::from([Bytes::from(a)]);
-        assert!(set.contains(a));
         assert!(set.contains(&b));
 
         assert_eq!(set.get(&b[..]), Some(&b));
         assert_eq!(set.get(&b), Some(&b));
-        assert_eq!(set.get(a), Some(&b));
-    }
-
-    #[test]
-    fn bytes_borrow_unknown_key() {
-        let a = b"xxx";
-        let set: HashSet<Bytes> = HashSet::from([Bytes::from(b"test")]);
-        assert!(!set.contains(a));
-    }
-
-    #[test]
-    #[cfg(debug_assertions)]
-    #[should_panic(expected = "mismatching types")]
-    fn bytes_borrow_wrong_type() {
-        let b = Bytes::from(b"test");
-        let _: [u8; 8] = *b.borrow();
     }
 }
