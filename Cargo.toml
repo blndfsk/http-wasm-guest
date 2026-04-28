@@ -21,8 +21,13 @@ log = ["dep:log"]
 missing_docs = "warn"
 
 [lints.clippy]
-cargo = "warn"
+panic = "deny"
+unwrap_used = "deny"
 missing_assert_message = "warn"
+map_unwrap_or = "warn"
+get_unwrap = "warn"
+unwrap_in_result = "warn"
+string_slice = "warn"
 
 [[example]]
 name = "info"

@@ -13,6 +13,9 @@ cargo test --lib
 cargo test --lib --release
 cargo test --doc
 
+# Coverage
+cargo llvm-cov --quiet --lib --show-missing-lines
+
 # Build WASM (required target)
 rustup target add wasm32-wasip1
 cargo build --target wasm32-wasip1 --example <name>

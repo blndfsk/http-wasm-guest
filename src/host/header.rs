@@ -13,7 +13,7 @@ impl Header {
     ///
     /// The `kind` value is used by the host API to distinguish between
     /// request and response headers.
-    pub(crate) fn kind(kind: i32) -> Self {
+    pub(crate) fn new(kind: i32) -> Self {
         Self(kind)
     }
 
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn header_get_existing() {
-        let header = Header::kind(0);
+        let header = Header::new(0);
         // The mock has "X-FOO" header with value "test1"
         let value = header.get(b"X-FOO");
         assert!(value.is_some());
@@ -114,14 +114,14 @@ mod tests {
 
     #[test]
     fn header_get_nonexistent() {
-        let header = Header::kind(0);
+        let header = Header::new(0);
         let value = header.get(b"X-NONEXISTENT");
         assert!(value.is_none());
     }
 
     #[test]
     fn header_get_all_single_value() {
-        let header = Header::kind(0);
+        let header = Header::new(0);
         let values = header.values(b"X-FOO");
         assert_eq!(values.len(), 1);
         assert_eq!(values[0], b"test1");
@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn header_get_all_multiple_values() {
-        let header = Header::kind(0);
+        let header = Header::new(0);
         // The mock has "x-bar" with values "test2" and "test3"
         let values = header.values(b"x-bar");
         assert_eq!(values.len(), 2);
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn header_names() {
-        let header = Header::kind(0);
+        let header = Header::new(0);
         let names = header.names();
         // The mock provides: X-FOO, x-bar, x-baz
         assert_eq!(names.len(), 3);
@@ -147,19 +147,19 @@ mod tests {
 
     #[test]
     fn header_values_map() {
-        let header = Header::kind(0);
+        let header = Header::new(0);
         let values_map = header.entries();
         // Should have 3 distinct header names
         assert_eq!(values_map.len(), 3);
         // X-FOO should have 1 value
-        assert_eq!(values_map.get(b"X-FOO").unwrap().len(), 1);
+        assert_eq!(values_map.get(&Bytes::from("X-FOO")).unwrap().len(), 1);
         // x-bar should have 2 values
-        assert_eq!(values_map.get(b"x-bar").map(|v| v.len()), Some(2));
+        assert_eq!(values_map.get(&Bytes::from(b"x-bar")).map(|v| v.len()), Some(2));
     }
 
     #[test]
     fn header_values_iter() {
-        let header = Header::kind(0);
+        let header = Header::new(0);
         let values = header.entries_iter();
 
         assert_eq!(values.count(), 3);
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn header_operations_with_bytes() {
-        let header = Header::kind(0);
+        let header = Header::new(0);
         let name = Bytes::from("x-bar");
         let values = header.values(&name);
         assert!(!values.is_empty());
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn header_values_map_with_duplicate_values() {
-        let header = Header::kind(0);
+        let header = Header::new(0);
         let values_map = header.entries();
 
         //should have 2 values

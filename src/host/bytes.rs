@@ -23,7 +23,7 @@ impl Bytes {
     /// This is a zero-copy view into the underlying bytes. If the data is not
     /// valid UTF-8, an error is returned.
     pub fn to_str(&self) -> Result<&str, Utf8Error> {
-        from_utf8(&self.0)
+        from_utf8(self.0.as_ref())
     }
 }
 
@@ -39,46 +39,64 @@ impl Deref for Bytes {
 
 impl Display for Bytes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))
+        write!(f, "{}", String::from_utf8_lossy(self.0.as_ref()))
     }
 }
 
 impl Borrow<[u8]> for Bytes {
     fn borrow(&self) -> &[u8] {
-        self.as_ref()
-    }
-}
-
-impl<const N: usize> Borrow<[u8; N]> for Bytes {
-    fn borrow(&self) -> &[u8; N] {
-        debug_assert!(self.len() == N, "mismatching types: expected [u8; {}], got [u8; {N}]", self.len());
-        // SAFETY: We verified that self.len() == N above, so the slice has exactly N elements.
-        // Casting from &[u8] to &[u8; N] is valid when the lengths match.
-        unsafe { &*(self.as_ref() as *const [u8] as *const [u8; N]) }
+        self.0.as_ref()
     }
 }
 
 // --- Comparison Trait Implementations ---
+impl PartialEq<Bytes> for [u8] {
+    fn eq(&self, other: &Bytes) -> bool {
+        self == other.0.as_ref()
+    }
+}
+
+impl PartialEq<[u8]> for Bytes {
+    fn eq(&self, other: &[u8]) -> bool {
+        self.0.as_ref() == other
+    }
+}
+
+impl PartialEq<Bytes> for &[u8] {
+    fn eq(&self, other: &Bytes) -> bool {
+        *self == other.0.as_ref()
+    }
+}
+
+impl PartialEq<&[u8]> for Bytes {
+    fn eq(&self, other: &&[u8]) -> bool {
+        self.0.as_ref() == *other
+    }
+}
 
 impl<const N: usize> PartialEq<[u8; N]> for Bytes {
     fn eq(&self, other: &[u8; N]) -> bool {
-        self.as_ref() == other
+        self.0.as_ref() == other
     }
 }
 
 impl<const N: usize> PartialEq<Bytes> for [u8; N] {
     fn eq(&self, other: &Bytes) -> bool {
-        self == other.as_ref()
+        self == other.0.as_ref()
     }
 }
 
 impl<const N: usize> PartialEq<&[u8; N]> for Bytes {
     fn eq(&self, other: &&[u8; N]) -> bool {
-        self == *other
+        self.0.as_ref() == *other
+    }
+}
+impl<const N: usize> PartialEq<Bytes> for &[u8; N] {
+    fn eq(&self, other: &Bytes) -> bool {
+        *self == other.0.as_ref()
     }
 }
 
-// Helper trait implementations
 impl PartialEq<str> for Bytes {
     fn eq(&self, other: &str) -> bool {
         match self.to_str() {
@@ -99,7 +117,12 @@ impl PartialEq<&str> for Bytes {
 
 impl PartialEq<Bytes> for str {
     fn eq(&self, other: &Bytes) -> bool {
-        self.as_bytes() == other.as_ref()
+        self.as_bytes() == other.0.as_ref()
+    }
+}
+impl PartialEq<Bytes> for &str {
+    fn eq(&self, other: &Bytes) -> bool {
+        self.as_bytes() == other.0.as_ref()
     }
 }
 
@@ -175,21 +198,21 @@ mod tests {
     fn bytes_from_byte_slice_roundtrip() {
         let original: &[u8] = b"binary data \x00\x01\x02";
         let bytes = Bytes::from(original);
-        assert_eq!(bytes.as_ref(), original);
+        assert_eq!(&bytes, original);
     }
 
     #[test]
     fn bytes_from_vec_roundtrip() {
         let original = vec![0x48, 0x65, 0x6c, 0x6c, 0x6f]; // "Hello"
         let bytes = Bytes::from(original.clone());
-        assert_eq!(bytes.as_ref(), original.as_slice());
+        assert_eq!(&bytes, original.as_slice());
     }
 
     #[test]
     fn bytes_from_boxed_slice() {
         let boxed: Box<[u8]> = vec![1, 2, 3, 4, 5].into_boxed_slice();
         let bytes = Bytes::from(boxed.clone());
-        assert_eq!(bytes.as_ref(), boxed.as_ref());
+        assert_eq!(&bytes, boxed.as_ref());
     }
 
     #[test]
@@ -257,22 +280,36 @@ mod tests {
     }
 
     #[test]
-    fn bytes_partial_eq_u8() {
-        let a = b"test";
-        let b = Bytes::from(a);
+    fn slice_eq_bytes() {
+        let slice: &[u8] = &vec![1, 2, 3, 4][..];
+        let bytes = Bytes::from(vec![1, 2, 3, 4]);
+        assert_eq!(slice, bytes);
+        assert_eq!(&*slice, &bytes);
 
-        assert!(b.eq(a));
-        assert!(a.eq(&b));
+        assert!(bytes.eq(slice));
+        assert!(bytes.eq(&slice));
+        assert!(&bytes.eq(slice));
+        assert!(slice.eq(&bytes));
     }
 
     #[test]
-    fn bytes_partial_eq_str() {
-        let a = "test";
-        let b = Bytes::from(a);
+    fn array_slice_eq_bytes() {
+        let arr: &[u8; 4] = &[1, 2, 3, 4];
+        let bytes = Bytes::from(vec![1, 2, 3, 4]);
+        assert!(bytes.eq(&arr));
+        assert!(&bytes.eq(&arr));
+        assert!(arr.eq(&bytes));
+        assert_eq!(arr, bytes);
+    }
 
-        assert!(b.eq(a));
-        assert!(&b.eq(a));
-        assert!(a.eq(&b));
+    #[test]
+    fn str_slice_eq_bytes() {
+        let str = "test";
+        let bytes = Bytes::from("test");
+        assert_eq!(str, bytes);
+        assert!(bytes.eq(str));
+        assert!(&bytes.eq(str));
+        assert!(str.eq(&bytes));
     }
 
     #[test]
@@ -290,26 +327,9 @@ mod tests {
         let a = b"test";
         let b = Bytes::from(a);
         let set: HashSet<Bytes> = HashSet::from([Bytes::from(a)]);
-        assert!(set.contains(a));
         assert!(set.contains(&b));
 
         assert_eq!(set.get(&b[..]), Some(&b));
         assert_eq!(set.get(&b), Some(&b));
-        assert_eq!(set.get(a), Some(&b));
-    }
-
-    #[test]
-    fn bytes_borrow_unknown_key() {
-        let a = b"xxx";
-        let set: HashSet<Bytes> = HashSet::from([Bytes::from(b"test")]);
-        assert!(!set.contains(a));
-    }
-
-    #[test]
-    #[cfg(debug_assertions)]
-    #[should_panic(expected = "mismatching types")]
-    fn bytes_borrow_wrong_type() {
-        let b = Bytes::from(b"test");
-        let _: [u8; 8] = *b.borrow();
     }
 }

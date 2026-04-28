@@ -7,11 +7,8 @@ use crate::host::{Bytes, handler};
 pub struct Body(i32);
 
 impl Body {
-    /// Create a body handle for a specific host-defined kind.
-    ///
-    /// The `kind` value is provided by the host API to distinguish between
-    /// request and response bodies.
-    pub(crate) fn kind(kind: i32) -> Self {
+    /// Create a new body handle for the given kind.
+    pub(crate) fn new(kind: i32) -> Self {
         Self(kind)
     }
 
@@ -44,7 +41,7 @@ mod tests {
 
     #[test]
     fn body_read_request() {
-        let body = Body::kind(1);
+        let body = Body::new(1);
         let content = body.read();
         // Mock returns HTML content
         assert!(!content.is_empty());
@@ -53,7 +50,7 @@ mod tests {
 
     #[test]
     fn body_read_response() {
-        let body = Body::kind(0);
+        let body = Body::new(0);
         let content = body.read();
         assert!(content.is_empty());
     }
