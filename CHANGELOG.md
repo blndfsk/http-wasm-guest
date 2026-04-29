@@ -1,3 +1,23 @@
+## v0.11.3
+
+### Features
+- **New `PartialEq` trait implementations for `Bytes`**: Enables comparisons between `Bytes` and byte slices, arrays, and strings:
+  - `Bytes` <-> `[u8]` and `&[u8]`
+  - `Bytes` <-> `[u8; N]` and `&[u8; N]` for any `N`
+  - `Bytes` <-> `&Bytes`
+  - `Bytes` <-> `str` and `&str`
+  - All combinations work bidirectionally: `slice == bytes`, `bytes == slice`, `arr == bytes`, `str == bytes`, etc.
+
+### Refactoring
+- Removed unsafe implementation of `Borrow<[u8; N]>` for `Bytes`. 
+
+### Safety & Lints
+- Added strict lint rules in `Cargo.toml`:
+  - `panic = "deny"`, `unwrap_used = "deny"` — enforce safe error handling
+  - `map_unwrap_or = "warn"`, `get_unwrap = "warn"`, `unwrap_in_result = "warn"` — warn against common unsafe patterns
+  - `string_slice = "warn"` — warn on string-slice conversions
+
+
 ## v0.11.2
 
 ### API Changes
