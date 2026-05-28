@@ -23,6 +23,7 @@ buildah commit $container localhost/$plugin
 buildah rm $container
 
 podman run -d --pod $pod --replace --name whoami \
+    --label "traefik.enable=true" \
     --label 'traefik.http.routers.whoami.rule=Host(`whoami.localhost`)' \
     --label "traefik.http.routers.whoami.middlewares=$plugin" \
     --label "traefik.http.routers.whoami.service=whoami" \
@@ -32,5 +33,7 @@ podman run -d --pod $pod --replace --name whoami \
 
 podman run -it --rm --pod $pod \
     --volume /run/user/${UID}/podman/podman.sock:/var/run/docker.sock \
-    localhost/$plugin --entrypoints.web.address=:8080 --providers.docker=true --log.level=INFO \
+    localhost/$plugin --entrypoints.web.address=:8080 --providers.docker=true --providers.docker.exposedbydefault=false \
+    --log.level=INFO \
+    --global.checknewversion=false \
     --experimental.localplugins.$plugin.modulename=$plugin

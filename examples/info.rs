@@ -20,12 +20,12 @@ impl Guest for Plugin {
             let values = values.iter().map(|v| format!("{v}")).collect::<Vec<_>>().join(", ");
             info!("Header: {} [{}]", name, values);
         }
-        info!("Body: {}", request.body.read());
         (true, 0)
     }
     /// Handles outgoing responses by logging status and body.
     fn handle_response(&self, _req_ctx: i32, _request: &Request, response: &Response, _is_error: bool) {
         info!("Status: {}", response.status());
+        info!("Body: {}", response.body.read());
     }
 }
 

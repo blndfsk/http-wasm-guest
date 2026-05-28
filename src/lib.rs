@@ -12,10 +12,6 @@ use crate::memory::SyncCell;
 pub mod host;
 mod memory;
 
-struct Handler {
-    guest: Box<dyn Guest>,
-}
-
 /// Trait implemented by guest plugins to handle HTTP requests and responses.
 ///
 /// Implement this trait to observe and modify inbound requests and outbound
@@ -36,6 +32,10 @@ pub trait Guest {
     /// Use this hook to inspect or mutate headers and body before the response
     /// is sent back to the client.
     fn handle_response(&self, _req_ctx: i32, _request: &Request, _response: &Response, _is_error: bool) {}
+}
+
+struct Handler {
+    guest: Box<dyn Guest>,
 }
 
 #[cfg(not(test))]
