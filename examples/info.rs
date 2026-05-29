@@ -2,6 +2,14 @@
 //!
 //! This plugin demonstrates how to use the http-wasm-guest API to
 //! log request metadata, headers and body
+//!
+// ---traefik---
+// displayName: info
+// runtime: wasm
+// type: middleware
+// summary: "log request information"
+// testData: {}
+// ---
 use http_wasm_guest::{
     Guest, HostLogger,
     host::{Request, Response, admin, feature},

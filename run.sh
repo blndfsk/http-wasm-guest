@@ -15,8 +15,11 @@ trap 'cleanup' EXIT HUP INT TERM
 cargo build --target wasm32-wasip1 --example $plugin
 
 container=$(buildah from traefik:v3.6)
+# Extract embedded traefik config from the Rust source
+sed -n '/^\/\/ ---traefik---$/,/^\/\/ ---$/{//d;s/^\/\/ //;s/^\/\/$//;p}' examples/$plugin.rs > target/$plugin.yml
+
 buildah copy $container target/wasm32-wasip1/debug/examples/$plugin.wasm /opt/traefik/plugins-local/src/$plugin/plugin.wasm
-buildah copy $container examples/$plugin.yml /opt/traefik/plugins-local/src/$plugin/.traefik.yml
+buildah copy $container target/$plugin.yml /opt/traefik/plugins-local/src/$plugin/.traefik.yml
 
 buildah config --workingdir "/opt/traefik" $container
 buildah commit $container localhost/$plugin

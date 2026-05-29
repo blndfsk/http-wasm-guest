@@ -5,6 +5,14 @@
 //! add a custom header (`X-Bar: bar`) to incoming HTTP requests.
 //! The plugin implements the `Guest` trait and registers itself
 //! in the `main` function.
+//!
+// ---traefik---
+// displayName: header
+// runtime: wasm
+// type: middleware
+// summary: "add header to request"
+// testData: {}
+// ---
 
 use http_wasm_guest::{
     Guest,
@@ -12,7 +20,7 @@ use http_wasm_guest::{
     register,
 };
 
-/// A simple plugin that adds a custom header to each request.
+/// A simple plugin that adds a header to each request.
 struct Plugin {}
 
 impl Guest for Plugin {
