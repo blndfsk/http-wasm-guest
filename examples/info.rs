@@ -11,7 +11,7 @@
 // testData: {}
 // ---
 use http_wasm_guest::{
-    Guest, HostLogger,
+    Guest, HostLogger, HostLoggerConfig,
     host::{Request, Response, admin, feature},
     register,
 };
@@ -38,7 +38,7 @@ impl Guest for Plugin {
 }
 
 fn main() {
-    let _ = HostLogger::init();
+    let _ = HostLogger::init_with_config(HostLoggerConfig { max_message_len: 80, ..HostLoggerConfig::default() });
     admin::enable(feature::BufferRequest | feature::BufferResponse);
     let plugin = Plugin {};
     register(plugin);

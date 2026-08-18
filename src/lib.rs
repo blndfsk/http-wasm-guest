@@ -97,7 +97,7 @@ fn http_response(req_ctx: i32, is_error: i32) {
 #[cfg(feature = "log")]
 mod host_logger;
 #[cfg(feature = "log")]
-pub use host_logger::HostLogger;
+pub use host_logger::{HostLogger, HostLoggerConfig};
 
 #[cfg(test)]
 mod tests {
