@@ -1,4 +1,0 @@
-{
-  "name": "Rust Development",
-  "image": "mcr.microsoft.com/devcontainers/rust:latest",
-}
