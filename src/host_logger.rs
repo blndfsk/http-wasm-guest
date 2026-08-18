@@ -235,6 +235,17 @@ mod tests {
             assert_eq!(slice, b"ZZ", "Tiny limits should truncate without appending marker");
         });
     }
+    #[test]
+    fn test_log_truncation_zero_limit() {
+        let config = HostLoggerConfig { max_message_len: 0, ..HostLoggerConfig::default() };
+        let long_msg = "Z".repeat(30);
+        memory::with_buffer(|buf| {
+            let written = super::format_log_message(buf, &format_args!("{}", long_msg), config);
+            let slice = buf.as_subslice(written);
+            assert_eq!(slice.len(), config.max_message_len, "Truncated log should stay within configured max length");
+            assert_eq!(slice, b"", "Zero limit should truncate to empty");
+        });
+    }
 
     #[test]
     fn test_log_truncation_without_marker() {
@@ -244,6 +255,17 @@ mod tests {
             let written = super::format_log_message(buf, &format_args!("{}", long_msg), config);
             let slice = buf.as_subslice(written);
             assert_eq!(slice.len(), config.max_message_len, "Truncated log should stay within configured max length");
+            assert!(slice.ends_with(b"ZZZ"));
+        });
+    }
+    #[test]
+    fn test_log_overflow() {
+        let config = HostLoggerConfig { max_message_len: 3000, trunc_marker: b"", ..HostLoggerConfig::default() };
+        let long_msg = "Z".repeat(3000);
+        memory::with_buffer(|buf| {
+            let written = super::format_log_message(buf, &format_args!("{}", long_msg), config);
+            let slice = buf.as_subslice(written);
+            assert_eq!(slice.len(), buf.capacity(), "log should stay within max length of buf");
             assert!(slice.ends_with(b"ZZZ"));
         });
     }

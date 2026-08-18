@@ -336,6 +336,13 @@ mod tests {
     }
 
     #[test]
+    fn bytes_invalid_utf8_to_str_lossy() {
+        let invalid = Bytes::from(vec![0x48, 0xFF, 0x69]);
+        let s = invalid.to_str_lossy();
+        assert_eq!(s, "H�i");
+    }
+
+    #[test]
     fn bytes_display_invalid_utf8() {
         // When displaying invalid UTF-8, it should show the error message
         let invalid = Bytes::from(vec![0xFF, 0xFE]);
