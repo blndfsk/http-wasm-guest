@@ -1,5 +1,5 @@
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     fmt::Display,
     ops::Deref,
     str::{Utf8Error, from_utf8},
@@ -25,6 +25,10 @@ impl Bytes {
     pub fn to_str(&self) -> Result<&str, Utf8Error> {
         from_utf8(self.0.as_ref())
     }
+    /// Returns the contents as a str
+    pub fn to_str_lossy(&self) -> Cow<'_, str> {
+        String::from_utf8_lossy(self.0.as_ref())
+    }
 }
 
 // --- Standard Library Trait Implementations (for Bytes) ---
@@ -39,7 +43,7 @@ impl Deref for Bytes {
 
 impl Display for Bytes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(self.0.as_ref()))
+        write!(f, "{}", <&Bytes as Into<String>>::into(self))
     }
 }
 
@@ -167,6 +171,32 @@ impl From<&str> for Bytes {
     }
 }
 
+// --- Conversion Trait Implementations (From<Bytes> for ...) ---
+
+/// Creates a `Vec<u8>` by taking ownership of the contents of Bytes
+impl From<Bytes> for Vec<u8> {
+    fn from(value: Bytes) -> Self {
+        value.0.into_vec()
+    }
+}
+
+impl From<Bytes> for String {
+    fn from(value: Bytes) -> Self {
+        match String::from_utf8(value.0.into_vec()) {
+            Ok(s) => s,
+            Err(err) => String::from_utf8_lossy(err.as_bytes()).into_owned(),
+        }
+    }
+}
+impl From<&Bytes> for String {
+    fn from(value: &Bytes) -> Self {
+        match value.to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => String::from_utf8_lossy(value.0.as_ref()).into_owned(),
+        }
+    }
+}
+
 // --- Test Module ---
 
 #[cfg(test)]
@@ -206,6 +236,41 @@ mod tests {
         let original = vec![0x48, 0x65, 0x6c, 0x6c, 0x6f]; // "Hello"
         let bytes = Bytes::from(original.clone());
         assert_eq!(&bytes, original.as_slice());
+    }
+
+    #[test]
+    fn bytes_into_vec() {
+        let bytes = Bytes::from("test");
+        let vec: Vec<u8> = bytes.into();
+        assert_eq!(vec.as_slice(), "test".as_bytes());
+    }
+
+    #[test]
+    fn bytes_into_string_valid_utf8() {
+        let bytes = Bytes::from("hello");
+        let s: String = bytes.into();
+        assert_eq!(s, "hello");
+    }
+
+    #[test]
+    fn bytes_into_string_invalid_utf8_lossy() {
+        let bytes = Bytes::from(vec![0x48, 0xFF, 0x69]);
+        let s: String = bytes.into();
+        assert_eq!(s, "H�i");
+    }
+
+    #[test]
+    fn bytes_ref_into_string_valid_utf8() {
+        let bytes = Bytes::from("hello");
+        let s: String = (&bytes).into();
+        assert_eq!(s, "hello");
+    }
+
+    #[test]
+    fn bytes_ref_into_string_invalid_utf8_lossy() {
+        let bytes = Bytes::from(vec![0x48, 0xFF, 0x69]);
+        let s: String = (&bytes).into();
+        assert_eq!(s, "H�i");
     }
 
     #[test]
@@ -268,6 +333,13 @@ mod tests {
     fn bytes_invalid_utf8_to_str() {
         let invalid = Bytes::from(vec![0xFF, 0xFE]);
         assert!(invalid.to_str().is_err());
+    }
+
+    #[test]
+    fn bytes_invalid_utf8_to_str_lossy() {
+        let invalid = Bytes::from(vec![0x48, 0xFF, 0x69]);
+        let s = invalid.to_str_lossy();
+        assert_eq!(s, "H�i");
     }
 
     #[test]

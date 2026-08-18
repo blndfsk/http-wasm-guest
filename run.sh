@@ -15,14 +15,18 @@ trap 'cleanup' EXIT HUP INT TERM
 cargo build --target wasm32-wasip1 --example $plugin
 
 container=$(buildah from traefik:v3.6)
+# Extract embedded traefik config from the Rust source
+sed -n '/^\/\/ ---traefik---$/,/^\/\/ ---$/{//d;s/^\/\/ //;s/^\/\/$//;p}' examples/$plugin.rs > target/$plugin.yml
+
 buildah copy $container target/wasm32-wasip1/debug/examples/$plugin.wasm /opt/traefik/plugins-local/src/$plugin/plugin.wasm
-buildah copy $container examples/$plugin.yml /opt/traefik/plugins-local/src/$plugin/.traefik.yml
+buildah copy $container target/$plugin.yml /opt/traefik/plugins-local/src/$plugin/.traefik.yml
 
 buildah config --workingdir "/opt/traefik" $container
 buildah commit $container localhost/$plugin
 buildah rm $container
 
 podman run -d --pod $pod --replace --name whoami \
+    --label "traefik.enable=true" \
     --label 'traefik.http.routers.whoami.rule=Host(`whoami.localhost`)' \
     --label "traefik.http.routers.whoami.middlewares=$plugin" \
     --label "traefik.http.routers.whoami.service=whoami" \
@@ -32,5 +36,7 @@ podman run -d --pod $pod --replace --name whoami \
 
 podman run -it --rm --pod $pod \
     --volume /run/user/${UID}/podman/podman.sock:/var/run/docker.sock \
-    localhost/$plugin --entrypoints.web.address=:8080 --providers.docker=true --log.level=INFO \
+    localhost/$plugin --entrypoints.web.address=:8080 --providers.docker=true --providers.docker.exposedbydefault=false \
+    --log.level=INFO \
+    --global.checknewversion=false \
     --experimental.localplugins.$plugin.modulename=$plugin

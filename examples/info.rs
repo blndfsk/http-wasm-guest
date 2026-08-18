@@ -2,8 +2,16 @@
 //!
 //! This plugin demonstrates how to use the http-wasm-guest API to
 //! log request metadata, headers and body
+//!
+// ---traefik---
+// displayName: info
+// runtime: wasm
+// type: middleware
+// summary: "log request information"
+// testData: {}
+// ---
 use http_wasm_guest::{
-    Guest, HostLogger,
+    Guest, HostLogger, HostLoggerConfig,
     host::{Request, Response, admin, feature},
     register,
 };
@@ -20,17 +28,17 @@ impl Guest for Plugin {
             let values = values.iter().map(|v| format!("{v}")).collect::<Vec<_>>().join(", ");
             info!("Header: {} [{}]", name, values);
         }
-        info!("Body: {}", request.body.read());
         (true, 0)
     }
     /// Handles outgoing responses by logging status and body.
     fn handle_response(&self, _req_ctx: i32, _request: &Request, response: &Response, _is_error: bool) {
         info!("Status: {}", response.status());
+        info!("Body: {}", response.body.read());
     }
 }
 
 fn main() {
-    let _ = HostLogger::init();
+    let _ = HostLogger::init_with_config(HostLoggerConfig { max_message_len: 80, ..HostLoggerConfig::default() });
     admin::enable(feature::BufferRequest | feature::BufferResponse);
     let plugin = Plugin {};
     register(plugin);

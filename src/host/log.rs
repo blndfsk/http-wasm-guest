@@ -11,9 +11,11 @@
 //! This allows you to leverage the Rust logging ecosystem and have messages automatically
 //! forwarded to the host with proper filtering and formatting.
 //!
-//! Use [`HostLogger::init`] or [`HostLogger::init_with_level`] to install the logger and configure the maximum log level.
+//! Use [`HostLogger::init`], [`HostLogger::init_with_level`], or [`HostLogger::init_with_config`]
+//! to install the logger and configure the maximum log level / message length.
 //! After initialization, all log records are filtered and sent to the host according to the configured level.
-//! Log messages are formatted into a fixed-size buffer and truncated if longer than 4096 bytes.
+//! Log messages are formatted into a fixed-size buffer (2048 bytes) and are also capped by
+//! `HostLoggerConfig::max_message_len` (default 2048).
 //!
 //! ## Disabling the `log` Feature
 //!
