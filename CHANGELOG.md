@@ -1,3 +1,28 @@
+## v0.11.4
+
+### Features
+- **`Bytes` string/ownership conversions**
+  - Added `Bytes::to_str_lossy() -> Cow<'_, str>` for lossy UTF-8 views.
+  - Added `From<Bytes> for String` and `From<&Bytes> for String`.
+  - Added `From<Bytes> for Vec<u8>`.
+- **Configurable host logger**
+  - Added `HostLoggerConfig` (`level`, `max_message_len`, `trunc_marker`).
+  - Added `HostLogger::init_with_config(config)`.
+  - Re-exported `HostLoggerConfig` from crate root (`http_wasm_guest::HostLoggerConfig`).
+
+### Improvements
+- `Display` for `Bytes` now uses the same conversion semantics as `String::from(&bytes)`.
+- Host log formatting now respects configurable truncation length/marker while still bounded by the internal buffer.
+- Expanded test coverage for `Bytes` conversions and logger truncation behavior.
+
+### Examples & Tooling
+- Embedded Traefik plugin metadata directly in `examples/*.rs` and removed separate `examples/*.yml` files.
+- Updated `run.sh` to extract Traefik config from example source and write it to `target/<example>.yml` during local runs.
+
+### Maintenance
+- Updated locked `log` crate version to `0.4.33`.
+- Updated release workflow clippy step to `cargo clippy --all --all-features`.
+
 ## v0.11.3
 
 ### Features
