@@ -55,7 +55,7 @@ pub(crate) unsafe fn set_method(_method: *const u8, _len: i32) {
 // -------------------------------------------------------------------------
 
 pub(crate) unsafe fn get_uri(buf: *mut u8, buf_limit: i32) -> i32 {
-    copy_to_buf(b"https://test", buf, buf_limit)
+    copy_to_buf(b"/test", buf, buf_limit)
 }
 
 pub(crate) unsafe fn set_uri(_uri: *const u8, _len: i32) {
@@ -163,7 +163,6 @@ pub(crate) unsafe fn enable_features(_feature: i32) -> i32 {
 // -------------------------------------------------------------------------
 // Source Address
 // -------------------------------------------------------------------------
-
 pub(crate) unsafe fn get_source_addr(buf: *mut u8, buf_limit: i32) -> i32 {
-    copy_to_buf(b"192.168.1.1", buf, buf_limit)
+    copy_to_buf(b"192.168.1.1:4711", buf, buf_limit)
 }

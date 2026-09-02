@@ -17,7 +17,7 @@ impl Request {
     /// Return the client source address (ip:port) as raw bytes.
     ///
     /// ## Example ##
-    /// - IPv6 b"[fe80::90f4:16ff:fee0:24b3%enp5s0]:41236"
+    /// - IPv6 b"\[fe80::90f4:16ff:fee0:24b3%enp5s0\]:41236"
     /// - IPv4 b"1.1.1.1:12345"
     ///
     /// Supported are both IPv4 and IPv6
@@ -51,18 +51,6 @@ impl Request {
     pub fn set_uri(&self, uri: &[u8]) {
         handler::set_uri(uri);
     }
-
-    /// Return a handle for accessing and mutating request headers.
-    #[deprecated(since = "0.11.2", note = "use the `header` field directly instead")]
-    pub fn header(&self) -> &Header {
-        &self.header
-    }
-
-    /// Return a handle for reading or writing the request body.
-    #[deprecated(since = "0.11.2", note = "use the `body` field directly instead")]
-    pub fn body(&self) -> &Body {
-        &self.body
-    }
 }
 
 #[cfg(test)]
@@ -74,7 +62,7 @@ mod tests {
         let request = Request::new();
         let method = request.method();
         // The mock returns "GET"
-        assert_eq!(&method, b"GET");
+        assert_eq!(&method, "GET");
     }
 
     #[test]
@@ -83,7 +71,7 @@ mod tests {
         let version = request.version();
         // The mock returns "HTTP/2.0"
         assert!(!version.is_empty());
-        assert_eq!(version.to_str().unwrap(), "HTTP/2.0");
+        assert_eq!(version, "HTTP/2.0");
     }
 
     #[test]
@@ -91,15 +79,15 @@ mod tests {
         let request = Request::new();
         let uri = request.uri();
         // The mock returns "https://test"
-        assert!(uri.to_str().unwrap().contains("test"));
+        assert_eq!(uri, "/test");
     }
 
     #[test]
     fn request_source_addr() {
         let request = Request::new();
         let addr = request.source_addr();
-        // The mock returns "192.168.1.1"
-        assert_eq!(addr.to_str().unwrap(), "192.168.1.1");
+        // The mock returns "192.168.1.1:4711"
+        assert_eq!(addr, "192.168.1.1:4711");
     }
 
     #[test]

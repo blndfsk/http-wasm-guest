@@ -24,18 +24,6 @@ impl Response {
     pub fn set_status(&self, code: i32) {
         handler::set_status_code(code);
     }
-
-    /// Return a handle for accessing and mutating response headers.
-    #[deprecated(since = "0.11.2", note = "use the `header` field directly instead")]
-    pub fn header(&self) -> &Header {
-        &self.header
-    }
-
-    /// Return a handle for reading or writing the response body.
-    #[deprecated(since = "0.11.2", note = "use the `body` field directly instead")]
-    pub fn body(&self) -> &Body {
-        &self.body
-    }
 }
 
 #[cfg(test)]

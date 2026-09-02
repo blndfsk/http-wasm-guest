@@ -4,7 +4,6 @@
 //! manipulation utilities, logging, and feature configuration for `http-wasm`
 //! guest plugins.
 mod body;
-mod bytes;
 mod handler;
 mod header;
 mod request;
@@ -15,7 +14,9 @@ pub mod feature;
 pub mod log;
 
 pub use body::Body;
-pub use bytes::Bytes;
 pub use header::Header;
 pub use request::Request;
 pub use response::Response;
+
+#[doc(no_inline)]
+pub use bytes::Bytes;
