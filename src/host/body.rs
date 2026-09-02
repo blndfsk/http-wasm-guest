@@ -45,7 +45,7 @@ mod tests {
         let content = body.read();
         // Mock returns HTML content
         assert!(!content.is_empty());
-        assert!(content.to_str().unwrap().contains("html"));
+        assert!(String::from_utf8_lossy(&content).contains("html"));
     }
 
     #[test]

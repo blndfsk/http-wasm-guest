@@ -111,6 +111,20 @@ mod tests {
     // Guest Trait Tests
     // =========================================================================
 
+    #[test]
+    fn guest_default_implementation() {
+        struct DefaultGuest;
+        impl Guest for DefaultGuest {}
+
+        let guest = DefaultGuest;
+        let request = Request::new();
+        let response = Response::new();
+
+        let (cont, ctx) = guest.handle_request(&request, &response);
+        assert!(cont);
+        assert_eq!(ctx, 0);
+    }
+
     struct TestPlugin {
         request_handled: Arc<AtomicBool>,
         response_handled: Arc<AtomicBool>,
@@ -127,20 +141,6 @@ mod tests {
         fn handle_response(&self, _req_ctx: i32, _request: &Request, _response: &Response, _is_error: bool) {
             self.response_handled.store(true, Ordering::SeqCst);
         }
-    }
-
-    #[test]
-    fn guest_default_implementation() {
-        struct DefaultGuest;
-        impl Guest for DefaultGuest {}
-
-        let guest = DefaultGuest;
-        let request = Request::new();
-        let response = Response::new();
-
-        let (cont, ctx) = guest.handle_request(&request, &response);
-        assert!(cont);
-        assert_eq!(ctx, 0);
     }
 
     #[test]
@@ -235,7 +235,7 @@ mod tests {
     impl Guest for BlockingPlugin {
         fn handle_request(&self, request: &Request, response: &Response) -> (bool, i32) {
             let uri = request.uri();
-            let uri_str = uri.to_str().unwrap_or("");
+            let uri_str = String::from_utf8_lossy(&uri);
 
             for blocked in &self.blocked_paths {
                 if uri_str.contains(blocked) {
@@ -261,12 +261,12 @@ mod tests {
 
     #[test]
     fn e2e_blocking_plugin_blocks() {
-        // Use "test" as blocked path since mock URI is "https://test"
+        // Use "test" as blocked path since mock URI is "/test"
         let plugin = BlockingPlugin { blocked_paths: vec!["test"] };
         let request = Request::new();
         let response = Response::new();
 
-        // Mock returns "https://test" which contains "test"
+        // Mock returns "/test" which contains "test"
         let (cont, _) = plugin.handle_request(&request, &response);
         assert!(!cont);
     }
@@ -277,7 +277,7 @@ mod tests {
     impl Guest for ConfigurablePlugin {
         fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
             let config = admin::config();
-            if config.to_str().unwrap_or("").contains("config") {
+            if String::from_utf8_lossy(&config).contains("config") {
                 request.header.add(b"X-Config-Loaded", b"true");
             }
             (true, 0)

@@ -29,7 +29,7 @@ mod tests {
     fn admin_config() {
         let config = config();
         // The mock returns JSON-like config
-        let config_str = config.to_str().unwrap();
+        let config_str = String::from_utf8_lossy(&config);
         assert!(config_str.contains("config"));
         assert!(config_str.contains("test1"));
     }

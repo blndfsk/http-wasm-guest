@@ -1,7 +1,7 @@
 [package]
 name = "http-wasm-guest"
 description = "A Rust library for implementing HTTP-Wasm guest handlers."
-version = "0.11.5"
+version = "1.0.0"
 edition = "2024"
 repository = "https://github.com/blndfsk/http-wasm-guest"
 license = "MIT"
@@ -11,6 +11,7 @@ categories = ["wasm", "web-programming"]
 rust-version = "1.85.1"
 
 [dependencies]
+bytes = { version = "1"}
 log = { version = "0.4", optional = true }
 
 [features]

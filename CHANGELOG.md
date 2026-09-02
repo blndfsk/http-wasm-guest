@@ -1,3 +1,17 @@
+## v1.0.0
+
+### Features
+- **First stable (1.0) release**: the public API is now governed by [semver](https://semver.org/) — breaking changes will only be introduced in future major releases.
+- **`Bytes` is now the `bytes::Bytes` type from the [`bytes` crate](https://crates.io/crates/bytes)**, replacing the internal `Box<[u8]>`-based implementation. Common usage (`From`, `Deref`, `Borrow<[u8]>`) keeps the same ergonomics, with improved memory behavior.
+
+### API-Breaking Changes
+- `host::Bytes` is a re-export of `bytes::Bytes`; these APIs from the previous implementation are removed:
+  - `From<&[u8]>` and `From<&str>` for non-static data — use `Bytes::copy_from_slice(...)` instead.
+  - `to_str()`, `to_str_lossy()`, and the `Display` implementation — use `std::str::from_utf8(&bytes)` for validated views, `String::from_utf8_lossy(&bytes)` for lossy ones, and `Debug` for printable output.
+  - `PartialEq` comparisons with `[u8; N]` / `&[u8; N]` — compare via `.as_ref()` slices instead.
+  - `From<Bytes> for String` and `From<&Bytes> for String` (lossy) — use `String::from_utf8_lossy(&bytes).into_owned()` instead.
+- Cloning `Bytes` no longer produces an independent copy; clones share the underlying buffer. Data is immutable, so this does not change observable behavior, only memory usage.
+
 ## v0.11.4
 
 ### Features
