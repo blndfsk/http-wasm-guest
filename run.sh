@@ -28,8 +28,8 @@ buildah rm $container
 podman run -d --pod $pod --replace --name whoami \
     --label "traefik.enable=true" \
     --label 'traefik.http.routers.whoami.rule=Host(`whoami.localhost`)' \
-    --label "traefik.http.routers.whoami.middlewares=$plugin" \
     --label "traefik.http.routers.whoami.service=whoami" \
+    --label "traefik.http.routers.whoami.middlewares=$plugin" \
     --label "traefik.http.middlewares.$plugin.plugin.$plugin" \
     --label "traefik.http.services.whoami.loadbalancer.server.url=http://localhost:8081" \
     traefik/whoami -port 8081

@@ -38,7 +38,8 @@ impl Guest for Plugin {
 }
 
 fn main() {
-    let _ = HostLogger::init_with_config(HostLoggerConfig { max_message_len: 80, ..HostLoggerConfig::default() });
+    let _ =
+        HostLogger::init_with_config(HostLoggerConfig { max_message_len: 80, with_target: true, ..HostLoggerConfig::default() });
     admin::enable(feature::BufferRequest | feature::BufferResponse);
     let plugin = Plugin {};
     register(plugin);
