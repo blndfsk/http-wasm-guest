@@ -10,16 +10,18 @@ static LOGGER: HostLogger = HostLogger;
 /// Configuration for [`HostLogger`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct HostLoggerConfig {
-    /// Maximum log level to enable in Rust.
+    /// Maximum log level to enable in Rust. Defaults to `Level::Info`.
     pub level: Level,
-    /// Maximum formatted message length (in bytes) before truncation.
+    /// Maximum formatted message length (in bytes) before truncation. Defaults to `2048`.
     pub max_message_len: usize,
-    /// marker used to signal truncation
+    /// Marker used to signal truncation. Defaults to `b"...`.
     pub trunc_marker: &'static [u8],
+    /// Whether to include the target in the log message. Defaults to `false`.
+    pub with_target: bool,
 }
 
 impl HostLoggerConfig {
-    const DEFAULT: Self = Self { level: Level::Info, max_message_len: 2048, trunc_marker: b"..." };
+    const DEFAULT: Self = Self { level: Level::Info, max_message_len: 2048, trunc_marker: b"...", with_target: false };
 }
 
 impl Default for HostLoggerConfig {
@@ -89,7 +91,12 @@ fn format_log_message(buf: &mut memory::Buffer, record: &Record, config: &HostLo
 
     let written = {
         let mut slice = &mut buf.as_mut_slice()[..limit];
-        write!(slice, "{}", record.args()).map(|()| limit - slice.len())
+        if config.with_target && record.target().len() + 2 <= limit {
+            write!(slice, "{}: {}", record.target(), record.args())
+        } else {
+            write!(slice, "{}", record.args())
+        }
+        .map(|()| limit - slice.len())
     };
 
     match written {
@@ -173,14 +180,19 @@ mod tests {
     fn test_init_with_config() {
         // Logger can only be set once globally, so we just verify it doesn't panic
         // and returns a result (either Ok or Err if already set)
-        let _result =
-            HostLogger::init_with_config(HostLoggerConfig { level: Level::Debug, max_message_len: 1024, trunc_marker: b"test" });
+        let _result = HostLogger::init_with_config(HostLoggerConfig {
+            level: Level::Debug,
+            max_message_len: 1024,
+            trunc_marker: b"test",
+            with_target: true,
+        });
         // If this is the first init, max_level should be Info
         // If logger was already set, this is still valid
         with_logger_config(|config| {
             assert_eq!(config.level, Level::Debug);
             assert_eq!(config.max_message_len, 1024);
             assert_eq!(config.trunc_marker, b"test");
+            assert!(config.with_target);
         })
     }
 
@@ -189,6 +201,8 @@ mod tests {
         let config = HostLoggerConfig::default();
         assert_eq!(config.level, Level::Info);
         assert_eq!(config.max_message_len, 2048);
+        assert_eq!(config.trunc_marker, b"...");
+        assert!(!config.with_target);
     }
 
     #[test]
@@ -288,6 +302,51 @@ mod tests {
             let written = super::format_log_message(buf, &RecordBuilder::new().args(format_args!("{}", msg)).build(), &config);
             assert_eq!(written, msg.len(), "message should not be truncated");
             assert_eq!(buf.as_subslice(written), msg.as_bytes());
+        });
+    }
+
+    #[test]
+    fn test_format_log_message_with_target() {
+        let msg = "Test";
+        let config = HostLoggerConfig { with_target: true, ..Default::default() };
+        memory::with_buffer(|buf| {
+            let written = super::format_log_message(
+                buf,
+                &RecordBuilder::new().args(format_args!("{msg}")).target("target").build(),
+                &config,
+            );
+            assert_eq!(buf.as_subslice(written), b"target: Test");
+        });
+    }
+    #[test]
+    fn test_format_log_message_with_target_truncates() {
+        let msg = "A".repeat(30);
+        let config = HostLoggerConfig { max_message_len: 20, with_target: true, ..Default::default() };
+        memory::with_buffer(|buf| {
+            let written = super::format_log_message(
+                buf,
+                &RecordBuilder::new().args(format_args!("{msg}")).target("target").build(),
+                &config,
+            );
+            let slice = buf.as_subslice(written);
+            assert_eq!(slice, b"target: AAAAAAAAA...");
+            assert_eq!(slice.len(), config.max_message_len, "Truncated log should respect configured max length");
+        });
+    }
+
+    #[test]
+    fn test_format_log_message_with_target_short_message_len() {
+        let msg = "A".repeat(10);
+        let config = HostLoggerConfig { max_message_len: 5, with_target: true, ..Default::default() };
+        memory::with_buffer(|buf| {
+            let written = super::format_log_message(
+                buf,
+                &RecordBuilder::new().args(format_args!("{msg}")).target("target").build(),
+                &config,
+            );
+            let slice = buf.as_subslice(written);
+            assert_eq!(slice, b"AA...");
+            assert_eq!(slice.len(), config.max_message_len, "Truncated log should respect configured max length");
         });
     }
     #[test]
