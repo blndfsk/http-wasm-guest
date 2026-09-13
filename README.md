@@ -13,8 +13,8 @@ It is designed for writing Traefik plugins in Rust, and works with any http-wasm
 ## Design Goals
 
 - Not opinionated, the focus is to provide a very thin wrapper around the host functions.
-- Minimal dependency footprint: only the `log` crate is used at runtime (can be deactivated)
-- Low-level `Byte` abstraction to enable all use-cases.
+- Minimal dependency footprint: only the [`bytes`](https://crates.io/crates/bytes) and `log` crates are used at runtime (`log` can be deactivated)
+- Standard [`bytes::Bytes`](https://docs.rs/bytes/latest/bytes/struct.Bytes.html) type for all byte data — zero-copy, cheaply clonable, and familiar from the HTTP ecosystem.
 - Memory-efficient data handling suitable for constrained Wasm environments.
 
 ## Caveat
@@ -57,6 +57,16 @@ fn main() {
     register(plugin);
 }
 ```
+
+### Data Types
+
+All request/response data is exchanged as `Bytes`, a re-export of [`bytes::Bytes`](https://docs.rs/bytes/latest/bytes/) from the [`bytes` crate](https://crates.io/crates/bytes), available as `http_wasm_guest::host::Bytes`:
+
+- Setters (`header.add`, `body.write`, …) accept any byte slice, so literals work directly: `request.header.add(b"X-Foo", b"bar")`.
+- Getters return owned `Bytes` values. Cloning them is cheap — clones share the underlying buffer, and the data is immutable.
+- For string views use `String::from_utf8_lossy(&value)` (lossy) or `std::str::from_utf8(&value)` (validated).
+
+> **Upgrading from < v1.0.0** `Bytes` was previously an internal `Box<[u8]>`-based type and is now `bytes::Bytes`. Some convenience APIs were removed (e.g. `to_str()`, `From<&[u8]>` for non-static data) — see the [v1.0.0 changelog](CHANGELOG.md#v100) for the full migration notes.
 
 ### Test
 
@@ -119,21 +129,22 @@ Look for the presence of the `X-Custom-Header: FooBar` line in the output. This 
 
 #### Common Issues When Building for WASM
 
-- **Missing WASM Target:**  
+- **Missing WASM Target:**
   If you see errors about unknown target or missing standard library, make sure you have added the WASM target:
+
   ```shell
   rustup target add wasm32-wasip1
   ```
 
-- **Build Fails with Linking Errors:**  
+- **Build Fails with Linking Errors:**
   Ensure you are using the correct target triple (`wasm32-wasip1`) and not `wasm32-unknown-unknown` or others.
 
-- **Plugin Not Loaded or No Effect:**  
+- **Plugin Not Loaded or No Effect:**
   - Double-check that your `.wasm` file is being mounted and referenced correctly in your server/proxy configuration.
   - Review logs for errors about plugin loading or execution.
 
-- **Crate Features or Dependency Issues:**  
+- **Crate Features or Dependency Issues:**
   Some crates do not support WASM targets. Keep dependencies minimal and check for WASM compatibility.
 
-- **Debugging WASM Plugins:**  
+- **Debugging WASM Plugins:**
   Use logging (`log` crate) to emit messages from your plugin. Ensure the host runtime is configured to display or capture logs.
