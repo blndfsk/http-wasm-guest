@@ -1,3 +1,8 @@
+## v1.1.0
+
+### Features
+- **Target in host logger messages**: New `with_target` option in `HostLoggerConfig`. When enabled, log messages are prefixed with the record's target (`<target>: <message>`). Disabled by default; the prefix counts against `max_message_len`, so truncation semantics are unchanged.
+
 ## v1.0.0
 
 ### Features
