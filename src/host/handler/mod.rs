@@ -329,6 +329,13 @@ mod tests {
     }
 
     #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "host returned size 2049 exceeds buffer")]
+    fn test_body_wrong_size() {
+        let (_, _) = body_chunk(test::kinds::BODY_WITH_WRONG_SIZE);
+    }
+
+    #[test]
     fn test_body_no_eof_empty_buf() {
         // EMPTY_BODY_WITHOUT_EOF returns full buffer chunks without EOF
         let content = body(test::kinds::EMPTY_BODY_WITHOUT_EOF);
