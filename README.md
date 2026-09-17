@@ -13,16 +13,18 @@ It is designed for writing Traefik plugins in Rust, and works with any http-wasm
 ## Design Goals
 
 - Not opinionated, the focus is to provide a very thin wrapper around the host functions.
-- Minimal dependency footprint: only the [`bytes`](https://crates.io/crates/bytes) and `log` crates are used at runtime (`log` can be deactivated)
-- Standard [`bytes::Bytes`](https://docs.rs/bytes/latest/bytes/struct.Bytes.html) type for all byte data — zero-copy, cheaply clonable, and familiar from the HTTP ecosystem.
-- Memory-efficient data handling suitable for constrained Wasm environments.
+- Minimal dependency footprint: only the [`bytes`](https://crates.io/crates/bytes) and `log` crates are used at runtime (`log` is a default feature and can be deactivated).
+- Standard [`bytes::Bytes`](https://docs.rs/bytes/latest/bytes/struct.Bytes.html) type for all byte data — cheaply clonable and familiar from the HTTP ecosystem.
+- **Writes are allocation-free**: setters pass your data straight from guest memory to the host in a single host call, with no guest-side copy.
+- **Reads return owned data**: getters copy what the host provides into owned values, so results always outlive the host call.
 
-## Caveat
+## Memory Model
 
-To avoid heap allocations on hot paths (logging, reading from the host), buffers are preallocated and reused.
-For reading large payloads, an overflow path is implemented that allocates the needed buffer on the heap.
-The maximum size of these buffers is 16MB, values larger are truncated.
-Log messages are formatted into a fixed-size 2048-byte static buffer; messages exceeding this limit will be truncated.
+To keep hot paths allocation-free, host reads are written into a single shared 2048-byte buffer that is reused for every host call. A field that does not fit is fetched with one extra host call into an exactly-sized heap allocation; values larger than just under 16 MB are truncated.
+
+Log messages routed through the `log` feature are formatted into the same 2048-byte buffer; longer messages are truncated with a marker.
+
+Per-method cost details live in the [API documentation](https://docs.rs/http-wasm-guest).
 
 ## Credits
 
@@ -68,16 +70,16 @@ All request/response data is exchanged as `Bytes`, a re-export of [`bytes::Bytes
 
 > **Upgrading from < v1.0.0** `Bytes` was previously an internal `Box<[u8]>`-based type and is now `bytes::Bytes`. Some convenience APIs were removed (e.g. `to_str()`, `From<&[u8]>` for non-static data) — see the [v1.0.0 changelog](CHANGELOG.md#v100) for the full migration notes.
 
-### Test
+## Testing examples
 
-#### Prerequisites
+### Prerequisites
 
 To run the examples using the `run.sh` script, you will need the following tools and resources installed on your system:
 
 - **[Podman](https://podman.io/):** Used for running rootless containers and pods (a drop-in replacement for Docker).
 - **[Buildah](https://buildah.io/):** Used for building container images.
 - **Rust toolchain:** With the `wasm32-wasip1` target installed.
-- **Network access:** To pull the `traefik:v3.6` and `traefik/whoami` container images if not already present locally.
+- **Network access:** To pull the `traefik` and `traefik/whoami` container images if not already present locally.
 - **Sufficient permissions:** To run containerized workloads (may require appropriate user group membership).
 
 You can install Podman and Buildah using your system's package manager. For example, on Ubuntu:
@@ -93,7 +95,7 @@ Make sure you have the WASM target for Rust:
 rustup target add wasm32-wasip1
 ```
 
-#### Running the Example
+### Running the Example
 
 You can run the examples via the provided `run.sh` script. This creates a running container for the traefik-server with the plugin configured and the whois-service wired into the router.
 
@@ -102,7 +104,7 @@ $ ./run.sh header
 [lots of logging output]
 ```
 
-#### Interpreting Example Output
+### Interpreting Example Output
 
 After running the example, you can test the plugin by sending a request to the local server:
 
@@ -123,11 +125,9 @@ X-Custom-Header: FooBar
 
 Look for the presence of the `X-Custom-Header: FooBar` line in the output. This indicates that your plugin is running and modifying the request as expected. You can modify and re-run the examples to experiment with different plugin behaviors.
 
----
+## Troubleshooting
 
-### Troubleshooting
-
-#### Common Issues When Building for WASM
+### Common Issues When Building for WASM
 
 - **Missing WASM Target:**
   If you see errors about unknown target or missing standard library, make sure you have added the WASM target:

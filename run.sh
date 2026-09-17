@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
-pod=$(podman pod create -p 8080:8080)
+pod=$(podman pod create -p 8081:80)
 plugin=$1
 
 function cleanup()
@@ -14,7 +14,7 @@ trap 'cleanup' EXIT HUP INT TERM
 
 cargo build --target wasm32-wasip1 --example $plugin
 
-container=$(buildah from traefik:v3.6)
+container=$(buildah from traefik:latest)
 # Extract embedded traefik config from the Rust source
 sed -n '/^\/\/ ---traefik---$/,/^\/\/ ---$/{//d;s/^\/\/ //;s/^\/\/$//;p}' examples/$plugin.rs > target/$plugin.yml
 
@@ -31,12 +31,12 @@ podman run -d --pod $pod --replace --name whoami \
     --label "traefik.http.routers.whoami.service=whoami" \
     --label "traefik.http.routers.whoami.middlewares=$plugin" \
     --label "traefik.http.middlewares.$plugin.plugin.$plugin" \
-    --label "traefik.http.services.whoami.loadbalancer.server.url=http://localhost:8081" \
-    traefik/whoami -port 8081
+    --label "traefik.http.services.whoami.loadbalancer.server.url=http://localhost:8080" \
+    traefik/whoami -port 8080
 
 podman run -it --rm --pod $pod \
     --volume /run/user/${UID}/podman/podman.sock:/var/run/docker.sock \
-    localhost/$plugin --entrypoints.web.address=:8080 --providers.docker=true --providers.docker.exposedbydefault=false \
+    localhost/$plugin --entrypoints.web.address=:80 --providers.docker=true --providers.docker.exposedbydefault=false \
     --log.level=INFO \
     --global.checknewversion=false \
     --experimental.localplugins.$plugin.modulename=$plugin

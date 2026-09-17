@@ -1,6 +1,18 @@
 # AGENTS.md
 
-## Key Commands
+Human-facing documentation (design goals, memory model, usage, examples, troubleshooting) lives in [README.md](README.md); per-method cost details live in the documentation of the public functions. Read the README before making changes.
+
+## Project structure
+
+- Single crate: `http-wasm-guest` (Rust 2024, MSRV 1.85.1)
+- `src/lib.rs` — `Guest` trait, `register`, and the WASM entry points
+- `src/host/` — host handles: `request`, `response`, `header`, `body`, `admin`, `feature`, `log`
+- `src/host/handler/` — FFI bindings and read logic (shared-buffer reads, `MAX_ALLOC_SIZE` fallback)
+- `src/memory.rs` — the shared 2048-byte read buffer (`with_buffer`)
+- `src/host_logger.rs` — `HostLogger` behind the `log` feature
+- `examples/` — `header` and `info` (run via `./run.sh <example_name>`)
+
+## Key commands
 
 ```bash
 # Lint and format
@@ -12,59 +24,43 @@ cargo nt  # alias: nextest run --lib --all-features --no-fail-fast
 cargo test --lib
 cargo test --lib --release
 cargo test --doc
+cargo test --lib <test_name>   # run a single test
 
 # Coverage
 cargo llvm-cov --quiet --lib --show-missing-lines
+
+# Miri (nightly)
+cargo +nightly miri test --lib
 
 # Build WASM (required target)
 rustup target add wasm32-wasip1
 cargo build --target wasm32-wasip1 --example <name>
 ```
 
-## Project Structure
+The `nt` and `cl` aliases are defined in `.cargo/config.toml`.
 
-- Single crate: `http-wasm-guest` (Rust 2024, requires 1.85.1+)
-- Entry point: `src/lib.rs` (`Guest` trait + `register` function)
-- Host interface: `src/host/` (Request, Response, Headers, Body, logging)
-- Examples: `examples/` (run via `./run.sh <example_name>`)
+## Build requirements
 
-## Design Goals
+- **Target**: always use `wasm32-wasip1`, not `wasm32-unknown-unknown`
+- **Features**: `log` is enabled by default; disable it with `--no-default-features`
+- Runtime dependencies: `bytes` plus optional `log` — keep additions minimal and WASM-compatible
 
-- Thin wrapper around host functions (minimal abstraction)
-- Minimize heap allocations by reusing a static 2048-byte buffer (`src/memory.rs`)
-- Returned data (via `to_boxed_slice`) must be heap-allocated for owned types
-- Max buffer size: 16MB; log messages truncated at 2048 bytes
-- Minimal runtime dependency: `log` crate (optional via `--no-default-features`)
+## Internal memory model
 
-## Build Requirements
+- Every host read is written into a single shared 2048-byte buffer (`src/memory.rs`, accessed via `with_buffer`) that is reused for every host call
+- Fields that do not fit fall back to one extra host call into an exactly-sized heap allocation, capped at `MAX_ALLOC_SIZE = 0xFFFFFF` (just under 16 MiB) in `src/host/handler/mod.rs`; larger reads are truncated
+- `body` reads loop in ≤2048-byte chunks (one host call per chunk) until EOF or the cap is reached
+- No API returns a zero-copy view of host data — reads always return owned copies (`Bytes::from(Box<[u8]>)`)
+- Log messages routed through the `log` feature are formatted into the same 2048-byte buffer and truncated there by `HostLogger` (guest-side, not the host); raw `host::log::write` passes the slice straight to the host with no guest-side truncation
 
-- **Target**: Always use `wasm32-wasip1`, not `wasm32-unknown-unknown`
-- **Feature**: `log` is enabled by default (`--no-default-features` to disable)
+## API behavior notes
 
-## Testing
+- **Headers**: names come back lowercase; lookups are case-insensitive. Every read = one host call + owned copies (one heap allocation per name/value). `.get(name)` returns the first value but still performs a full lookup and allocates all values. `set`/`add`/`remove` trap if the host fails
+- **Body**: `read` drains in ≤2048-byte chunks until EOF, returning owned `Bytes`; `write` is stateful — the first call replaces the body, later calls append
+- **Response**: `.status()` may panic when called before `handle_response`
+- **Features**: `admin::enable(flags)` returns the full bitflag of features the host supports; enable before returning from `handle_request` (or during init to fail fast)
 
-- Tests are embedded in `src/lib.rs` under `#[cfg(test)]`
-- Run individual tests: `cargo test --lib <test_name>`
-- Miri runs on nightly: `cargo +nightly miri test --lib`
+## Testing notes
 
-## Examples
-
-```bash
-./run.sh header   # builds and runs "header" example with Traefik
-./run.sh info     # builds and runs "info" example
-```
-
-Requires: Podman, Buildah, `traefik:v3.6` and `traefik/whoami` images.
-
-## API Reference
-
-- **Bytes**: `Box<[u8]>` wrapper with `Deref`, `PartialEq`, `.to_str()` (zero-copy UTF-8)
-- **Header**: `.get(name)` → first value; `.values_iter(name)` → all values; `.add(name, value)` appends; `.set(name, value)` replaces
-- **Body**: No streaming; entire body read/written as buffer
-- **Logging**: `log::info!()` etc., respects host level filtering
-
-## Quirks
-
-- Preallocated buffer to avoid heap allocations
-- Log messages truncated at 2048 bytes
-- Test code uses thread-local storage (different from WASM build)
+- Unit tests are embedded next to the code in every module under `#[cfg(test)]`, not only in `src/lib.rs`
+- Test builds use a thread-local copy of the shared buffer (`src/memory.rs`, `#[cfg(test)]`) instead of the single static buffer used in WASM builds, so tests can run in parallel

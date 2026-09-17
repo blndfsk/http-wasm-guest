@@ -2,20 +2,21 @@
 //!
 //! This module provides functions for forwarding log messages to the host runtime.
 //! By default, the `log` feature is enabled, which integrates the standard Rust `log` crate
-//! and provides the [`HostLogger`] implementation for ergonomic logging via macros like
+//! and provides the [`HostLogger`](crate::HostLogger) implementation for ergonomic logging via macros like
 //! `log::info!`, `log::warn!`, etc.
 //!
 //! ## Recommended Usage
 //!
-//! It is recommended to use the default `log` feature and the provided [`HostLogger`].
+//! It is recommended to use the default `log` feature and the provided
+//! [`HostLogger`](crate::HostLogger).
 //! This allows you to leverage the Rust logging ecosystem and have messages automatically
 //! forwarded to the host with proper filtering and formatting.
 //!
-//! Use [`HostLogger::init`], [`HostLogger::init_with_level`], or [`HostLogger::init_with_config`]
+//! Use [`HostLogger::init()`](crate::HostLogger::init), [`HostLogger::init_with_level()`](crate::HostLogger::init_with_level),
+//! or [`HostLogger::init_with_config()`](crate::HostLogger::init_with_config)
 //! to install the logger and configure the maximum log level / message length.
 //! After initialization, all log records are filtered and sent to the host according to the configured level.
-//! Log messages are formatted into a fixed-size buffer (2048 bytes) and are also capped by
-//! `HostLoggerConfig::max_message_len` (default 2048).
+//! Long messages are truncated with a marker (see `HostLoggerConfig::max_message_len`).
 //!
 //! ## Disabling the `log` Feature
 //!
@@ -26,7 +27,7 @@
 //! http-wasm-guest = { version = "...", default-features = false }
 //! ```
 //!
-//! You can then use the low-level functions [`write`] and [`enabled`] in this module for direct logging.
+//! You can then use the low-level functions [`write()`] and [`enabled()`] in this module for direct logging.
 //!
 //! ## Example (with feature = "log")
 //!
@@ -54,8 +55,11 @@ use crate::host::handler;
 ///
 /// # Arguments
 ///
-/// * `level` - The severity code to use for the log message. Valid values are: debug=−1, info=0, warn=1, error=2
-/// * `message` - The log message as a byte slice. Messages exceeding the host's buffer limit may be truncated.
+/// * `level` - The severity code to use for the log message, passed to the host
+///   as-is. The host maps debug=-1, info=0, warn=1, error=2.
+/// * `message` - The log message as a byte slice. When routed through
+///   [`HostLogger`](crate::HostLogger), long messages are truncated with a
+///   marker.
 ///
 /// This function is typically called internally by the logger implementation, but can be used directly to send custom log messages to the host.
 ///
@@ -78,6 +82,9 @@ pub fn write(level: i32, message: &[u8]) {
 /// # Returns
 ///
 /// `true` if logging is enabled for the given level; otherwise, `false`.
+///
+/// Hosts may cache this value at request granularity, so calling it per
+/// message is inexpensive but not guaranteed to observe mid-request changes.
 ///
 /// # Example
 ///

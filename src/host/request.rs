@@ -1,5 +1,11 @@
 use crate::host::{Body, Bytes, Header, handler};
 /// Handle for accessing and mutating the current HTTP request.
+///
+/// # Cost model
+///
+/// Each getter (`method`, `uri`, `version`, `source_addr`) is one host call
+/// and returns an owned [`Bytes`] backed by one heap allocation (none for
+/// empty values).
 pub struct Request {
     /// Handle for accessing and mutating request headers.
     pub header: Header,
@@ -43,11 +49,17 @@ impl Request {
     }
 
     /// Return the request URI as raw bytes.
+    ///
+    /// The host always returns the URI percent-encoded as ASCII (path and
+    /// query), and reports `/` for a request with no URI.
     pub fn uri(&self) -> Bytes {
         Bytes::from(handler::uri())
     }
 
     /// Replace the request URI with the provided bytes.
+    ///
+    /// Pass a percent-encoded URI: the host always expects encoded input and
+    /// replaces the full URI, including any query string.
     pub fn set_uri(&self, uri: &[u8]) {
         handler::set_uri(uri);
     }

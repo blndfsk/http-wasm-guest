@@ -3,18 +3,25 @@ use crate::host::{Bytes, handler};
 /// Handle for accessing and mutating an HTTP body stream.
 ///
 /// A `Body` is tied to a specific request or response context, depending on how
-/// it is constructed. Use it to read the full buffered body or write a new one.
+/// it is constructed. Use it to read the full body or write a new one.
+///
+/// # Cost model
+///
+/// [`read`](Body::read) drains the body through repeated host calls of at most
+/// 2048 bytes each. [`write`](Body::write) issues a single host call.
 pub struct Body(i32);
-
 impl Body {
     /// Create a new body handle for the given kind.
     pub(crate) fn new(kind: i32) -> Self {
         Self(kind)
     }
 
-    /// Read the entire body into memory and return it as [`Bytes`].
+    /// Read the entire body into memory and return it as owned [`Bytes`].
     ///
-    /// This returns the buffered payload when body buffering is enabled by the host.
+    /// The body is drained in chunks of at most 2048 bytes through repeated
+    /// `read_body` host calls until the host reports EOF: a large body therefore
+    /// costs one host call per 2048-byte chunk plus amortized heap growth to hold
+    /// the full payload.
     ///
     /// `feature::BufferRequest` is required to read without consuming the request body.
     /// To enable it, call `admin::enable(BufferRequest)` before returning from handle_request.
@@ -27,9 +34,11 @@ impl Body {
         Bytes::from(handler::body(self.0))
     }
 
-    /// Replace the body with the provided bytes.
+    /// Write the provided bytes as the body.
     ///
-    /// Use this to set a new payload after inspecting or transforming the original.
+    /// Writing is stateful: the first call in `handle_request` or
+    /// `handle_response` overwrites any existing body, and subsequent calls
+    /// append to it.
     pub fn write(&self, body: &[u8]) {
         handler::write_body(self.0, body);
     }

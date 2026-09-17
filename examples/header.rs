@@ -33,7 +33,7 @@ impl Guest for Plugin {
     /// # Returns
     /// Returns a tuple `(true, 0)` to indicate the request should continue.
     fn handle_request(&self, request: &Request, _response: &Response) -> (bool, i32) {
-        request.header.add(b"X-Custom-Header", b"FooBar");
+        request.header.add(b"x-custom-header", b"FooBar");
         (true, 0)
     }
 }

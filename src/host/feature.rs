@@ -6,11 +6,15 @@
 use std::ops::{BitOr, BitOrAssign};
 
 #[allow(non_upper_case_globals, non_snake_case)]
-/// Enables buffering of the entire request body before your handler is invoked.
+/// Enables host-side buffering of the request body so multiple readers can use it.
 ///
-/// When enabled, the host reads the full request body into memory and then makes it
-/// available to the guest. This allows multiple reads and supports request body
-/// inspection or mutation workflows that need complete payload access.
+/// When enabled, the host buffers the HTTP request body as it is read, so both
+/// your plugin and any downstream handler can read it. Without this flag, reading
+/// the body consumes the stream and the next handler may panic when it tries to
+/// read what was already read.
+///
+/// Enable it before returning from `handle_request` for the current request (or
+/// during initialization to fail fast on hosts that don't support it).
 ///
 /// Trade-offs:
 /// - Increased memory usage proportional to request size
@@ -19,11 +23,16 @@ use std::ops::{BitOr, BitOrAssign};
 /// Use this flag only when your plugin must read or modify the request body.
 pub const BufferRequest: Feature = Feature(1);
 #[allow(non_upper_case_globals, non_snake_case)]
-/// Enables buffering of the entire response body before it is sent.
+/// Enables host-side buffering of the response produced by the next handler.
 ///
-/// When enabled, the host collects the full response body so the guest can read and
-/// modify it during response handling. This is required for plugins that rewrite,
-/// filter, or analyze full response payloads.
+/// When enabled, the host defers the response produced by the next handler so
+/// `handle_response` can inspect and overwrite its status code, body, or trailers.
+/// This is required for plugins that rewrite, filter, or analyze full response
+/// payloads.
+///
+/// Because the response is sent later than usual, expect timing differences when
+/// enabled. As with [`BufferRequest`], enable it before returning from
+/// `handle_request` (or during initialization to fail fast).
 ///
 /// Trade-offs:
 /// - Increased memory usage proportional to response size
@@ -39,7 +48,8 @@ pub const BufferResponse: Feature = Feature(2);
 /// such as checksums or signatures.
 ///
 /// Notes:
-/// - Not all hosts or upstream servers support trailers
+/// - Not all hosts or upstream servers support trailers; hosts that don't report
+///   this bit as unavailable and trap if you try to set trailer values
 /// - Trailers are only applicable to chunked or streaming responses
 pub const Trailers: Feature = Feature(4);
 
