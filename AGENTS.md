@@ -49,14 +49,15 @@ The `nt` and `cl` aliases are defined in `.cargo/config.toml`.
 
 - Every host read is written into a single shared 2048-byte buffer (`src/memory.rs`, accessed via `with_buffer`) that is reused for every host call
 - Fields that do not fit fall back to one extra host call into an exactly-sized heap allocation, capped at `MAX_ALLOC_SIZE = 0xFFFFFF` (just under 16 MiB) in `src/host/handler/mod.rs`; larger reads are truncated
-- `body` reads loop in ≤2048-byte chunks (one host call per chunk) until EOF or the cap is reached
+- `body` reads (`read`) loop in ≤2048-byte chunks (one host call per chunk) until EOF or the cap is reached
+- `body` streaming (`read_iter`) issues one `read_body` host call per chunk without accumulating, ending on EOF or a zero-length read — no cap applies since nothing is retained
 - No API returns a zero-copy view of host data — reads always return owned copies (`Bytes::from(Box<[u8]>)`)
 - Log messages routed through the `log` feature are formatted into the same 2048-byte buffer and truncated there by `HostLogger` (guest-side, not the host); raw `host::log::write` passes the slice straight to the host with no guest-side truncation
 
 ## API behavior notes
 
 - **Headers**: names come back lowercase; lookups are case-insensitive. Every read = one host call + owned copies (one heap allocation per name/value). `.get(name)` returns the first value but still performs a full lookup and allocates all values. `set`/`add`/`remove` trap if the host fails
-- **Body**: `read` drains in ≤2048-byte chunks until EOF, returning owned `Bytes`; `write` is stateful — the first call replaces the body, later calls append
+- **Body**: `read` drains in ≤2048-byte chunks until EOF (capped at `MAX_ALLOC_SIZE`), returning owned `Bytes`; `read_iter` streams chunks of at most 2048 bytes without accumulating; `write` is stateful — the first call replaces the body, later calls append
 - **Response**: `.status()` may panic when called before `handle_response`
 - **Features**: `admin::enable(flags)` returns the full bitflag of features the host supports; enable before returning from `handle_request` (or during init to fail fast)
 

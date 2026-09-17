@@ -2,6 +2,8 @@
 
 #[cfg(test)]
 pub(crate) mod kinds {
+    /// Mock kind: Returns full buffer with size larger that buf
+    pub(crate) const BODY_WITH_WRONG_SIZE: i32 = 97;
     /// Mock kind: Returns empty buffers indefinitely without EOF
     pub(crate) const EMPTY_BODY_WITHOUT_EOF: i32 = 98;
     /// Mock kind: Returns full buffers indefinitely without EOF

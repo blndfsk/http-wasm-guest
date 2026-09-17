@@ -121,6 +121,12 @@ pub(crate) unsafe fn get_header_values(_kind: i32, name: *const u8, name_len: i3
 #[allow(clippy::identity_op, clippy::eq_op, reason = "clarity, both upper and lower i32 are relevant")]
 pub(crate) unsafe fn read_body(kind: i32, buf: *mut u8, buf_limit: i32) -> i64 {
     match kind {
+        test::kinds::BODY_WITH_WRONG_SIZE => {
+            // Fill entire buffer with 'A', never set EOF
+            let data = vec![b'A'; buf_limit as usize];
+            let len = copy_to_buf(&data, buf, buf_limit);
+            (0i64 << 32) | (len + 1) as i64
+        }
         test::kinds::EMPTY_BODY_WITHOUT_EOF => (0i64 << 32) | 0,
         test::kinds::OVERSIZED_BODY => {
             // Fill entire buffer with 'A', never set EOF
