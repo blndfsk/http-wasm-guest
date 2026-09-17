@@ -57,8 +57,10 @@ impl Header {
 
     /// Return the first value for the given header name, if present.
     ///
-    /// Note this still performs a full lookup: all values of the header are read
-    /// from the host and allocated before only the first is returned.
+    /// The `name` is matched case-insensitively by the host.
+    /// This is a convenience function for headers with only one value.
+    /// All values of the given header are read from the host and allocated,
+    /// only the first is returned.
     pub fn get(&self, name: &[u8]) -> Option<Bytes> {
         self.values_iter(name).next()
     }

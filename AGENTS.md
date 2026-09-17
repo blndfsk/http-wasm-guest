@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Human-facing documentation (design goals, memory model, usage, examples, troubleshooting) lives in [README.md](README.md); per-method cost details live in the [API documentation](https://docs.rs/http-wasm-guest). Read the README before making changes.
+Human-facing documentation (design goals, memory model, usage, examples, troubleshooting) lives in [README.md](README.md); per-method cost details live in the documentation of the public functions. Read the README before making changes.
 
 ## Project structure
 
