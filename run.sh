@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
-pod=$(podman pod create -p 8080:8080)
+pod=$(podman pod create -p 8081:80)
 plugin=$1
 
 function cleanup()
@@ -36,7 +36,7 @@ podman run -d --pod $pod --replace --name whoami \
 
 podman run -it --rm --pod $pod \
     --volume /run/user/${UID}/podman/podman.sock:/var/run/docker.sock \
-    localhost/$plugin --entrypoints.web.address=:8080 --providers.docker=true --providers.docker.exposedbydefault=false \
+    localhost/$plugin --entrypoints.web.address=:80 --providers.docker=true --providers.docker.exposedbydefault=false \
     --log.level=INFO \
     --global.checknewversion=false \
     --experimental.localplugins.$plugin.modulename=$plugin

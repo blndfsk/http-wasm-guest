@@ -3,18 +3,28 @@ use crate::host::{Bytes, handler};
 /// Handle for accessing and mutating an HTTP body stream.
 ///
 /// A `Body` is tied to a specific request or response context, depending on how
-/// it is constructed. Use it to read the full buffered body or write a new one.
+/// it is constructed. Use it to read the full body or write a new one.
+///
+/// # Cost model
+///
+/// [`read`](Body::read) drains the body through repeated host calls of at most
+/// 2048 bytes each, and returns an owned [`Bytes`] copy — not a view into guest
+/// memory. [`write`](Body::write) passes your slice straight to the host in a
+/// single call without any guest-side allocation.
 pub struct Body(i32);
-
 impl Body {
     /// Create a new body handle for the given kind.
     pub(crate) fn new(kind: i32) -> Self {
         Self(kind)
     }
 
-    /// Read the entire body into memory and return it as [`Bytes`].
+    /// Read the entire body into memory and return it as owned [`Bytes`].
     ///
-    /// This returns the buffered payload when body buffering is enabled by the host.
+    /// The body is drained in chunks of at most 2048 bytes through repeated
+    /// `read_body` host calls until the host reports EOF: a large body therefore
+    /// costs one host call per 2048-byte chunk plus amortized heap growth to hold
+    /// the full payload (capped at just under 16 MB). The returned [`Bytes`] owns
+    /// its data; it is not a view into guest memory.
     ///
     /// `feature::BufferRequest` is required to read without consuming the request body.
     /// To enable it, call `admin::enable(BufferRequest)` before returning from handle_request.
@@ -27,9 +37,13 @@ impl Body {
         Bytes::from(handler::body(self.0))
     }
 
-    /// Replace the body with the provided bytes.
+    /// Write the provided bytes as the body.
     ///
-    /// Use this to set a new payload after inspecting or transforming the original.
+    /// Per the [HTTP Handler ABI](https://http-wasm.io/http-handler-abi/),
+    /// `write_body` is stateful: the first call in `handle_request` or
+    /// `handle_response` overwrites any existing body, and subsequent calls
+    /// append to it. The host reads your slice directly from guest memory in a
+    /// single call; no guest-side allocation or copy is made.
     pub fn write(&self, body: &[u8]) {
         handler::write_body(self.0, body);
     }

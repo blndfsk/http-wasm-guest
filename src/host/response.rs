@@ -14,6 +14,10 @@ impl Response {
         Self { header: Header::new(KIND_RES), body: Body::new(KIND_RES) }
     }
     /// Return the current response status code.
+    ///
+    /// Per the [HTTP Handler ABI](https://http-wasm.io/http-handler-abi/), this
+    /// reads the status produced by the next handler, so calling it before
+    /// `handle_response` may panic.
     pub fn status(&self) -> i32 {
         handler::status_code()
     }
@@ -21,6 +25,8 @@ impl Response {
     /// Set the response status code.
     ///
     /// To call this in `handle_response` requires `feature::BufferResponse`.
+    /// The default status is 200, so you only need to call this for other
+    /// values. No guest-side allocation is made.
     pub fn set_status(&self, code: i32) {
         handler::set_status_code(code);
     }

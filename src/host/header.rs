@@ -6,8 +6,20 @@ use crate::host::{Bytes, handler};
 ///
 /// A `Header` is scoped to either the request or response, depending on how it
 /// is constructed.
+///
+/// # Cost model
+///
+/// Every read issues a host call that writes NUL-terminated data into a shared
+/// 2048-byte guest buffer (larger payloads are retried once against an
+/// exactly-sized heap allocation, capped at just under 16 MB). Because that
+/// buffer is reused for every subsequent host call, results are returned as
+/// **owned** [`Bytes`] copies rather than zero-copy views: expect one heap
+/// allocation per name or value plus the backing `Vec`. The `*_iter` forms skip
+/// only the final collection step; they do not avoid the per-item allocations.
+///
+/// Per the [HTTP Handler ABI](https://http-wasm.io/http-handler-abi/), header
+/// names are reported in lowercase and name lookups are case-insensitive.
 pub struct Header(i32);
-
 impl Header {
     /// Create a header handle for a specific host-defined kind.
     ///
@@ -17,69 +29,86 @@ impl Header {
         Self(kind)
     }
 
-    /// Returns an iterator over all header names as raw bytes without allocating into a vector.
+    /// Returns an iterator over all header names as raw bytes.
     ///
-    /// Header names are returned in the order provided by the host runtime.
-    /// This method is zero-allocation and returns an iterator that yields each
-    /// header name as `Bytes`. For heap-allocated results, use [`names`](Header::names).
+    /// Header names are returned in lowercase, in the order provided by the
+    /// host runtime. Each name is yielded as an owned [`Bytes`] copied out of
+    /// the shared guest buffer, so each item costs one heap allocation even
+    /// though no `Vec` is collected up front. Use [`names`](Header::names) to
+    /// collect them into a `Vec`.
     pub fn names_iter(&self) -> impl Iterator<Item = Bytes> + use<'_> {
         handler::header_names(self.0).into_iter().map(Bytes::from)
     }
 
-    /// Returns all header names as raw bytes, allocating into a vector.
+    /// Returns all header names as raw bytes in a `Vec`.
     ///
-    /// Header names are returned in the order provided by the host runtime.
-    /// This method collects results into a `Vec`, which allocates heap memory.
-    /// Use [`names_iter`](Header::names_iter) for zero-allocation access.
+    /// Costs one host call, one heap allocation per name, plus the `Vec`
+    /// itself. Use [`names_iter`](Header::names_iter) if you only need to
+    /// iterate without collecting.
     pub fn names(&self) -> Vec<Bytes> {
         self.names_iter().collect()
     }
 
-    /// Returns an iterator over all values for the given header name without allocating into a vector.
+    /// Returns an iterator over all values for the given header name.
     ///
-    /// The `name` is matched by the host according to its header normalization
-    /// rules (often case-insensitive). This method is zero-allocation and returns
-    /// an iterator that yields each header value as `Bytes`. For heap-allocated results,
-    /// use [`values`](Header::values).
+    /// The `name` is matched case-insensitively by the host. If the header does
+    /// not exist, the iterator yields nothing. Each value is yielded as an owned
+    /// [`Bytes`] copied out of the shared guest buffer (one heap allocation per
+    /// value); note that all values are read and allocated even if you only
+    /// consume some. Use [`values`](Header::values) to collect them into a `Vec`.
     pub fn values_iter(&self, name: &[u8]) -> impl Iterator<Item = Bytes> + use<'_> {
         handler::header_values(self.0, name).into_iter().map(Bytes::from)
     }
 
     /// Return the first value for the given header name, if present.
+    ///
+    /// Note this still performs a full lookup: all values of the header are read
+    /// from the host and allocated before only the first is returned.
     pub fn get(&self, name: &[u8]) -> Option<Bytes> {
         self.values_iter(name).next()
     }
 
-    /// Returns all values for the given header name, allocating into a vector.
+    /// Returns all values for the given header name in a `Vec`.
     ///
-    /// The `name` is matched by the host according to its header normalization
-    /// rules (often case-insensitive). This method collects results into a `Vec`,
-    /// which allocates heap memory. Use [`values_iter`](Header::values_iter) for
-    /// zero-allocation access.
+    /// The `name` is matched case-insensitively by the host. Costs one host
+    /// call, one heap allocation per value, plus the `Vec` itself. Use
+    /// [`values_iter`](Header::values_iter) if you only need to iterate without
+    /// collecting.
     pub fn values(&self, name: &[u8]) -> Vec<Bytes> {
         self.values_iter(name).collect()
     }
 
-    /// Set a header value, replacing any existing values.
+    /// Set a header value, replacing all existing values of the given name.
+    ///
+    /// The host traps if it fails to set the header. Matching is
+    /// case-insensitive; no heap allocation is made by the guest.
     pub fn set(&self, name: &[u8], value: &[u8]) {
         handler::set_header(self.0, name, value);
     }
 
-    /// Add an additional value for a header name.
+    /// Add an additional value for a header name (appending to any existing values).
+    ///
+    /// The host traps if it fails to add the header. No heap allocation is made
+    /// by the guest.
     pub fn add(&self, name: &[u8], value: &[u8]) {
         handler::add_header_value(self.0, name, value);
     }
 
     /// Remove a header and all of its values.
+    ///
+    /// The host traps if it fails to remove the header. No heap allocation is
+    /// made by the guest.
     pub fn remove(&self, name: &[u8]) {
         handler::remove_header(self.0, name);
     }
 
-    /// Return all headers as an iterator of names to value lists.
+    /// Return all headers as an iterator of `(name, values)` pairs.
     ///
-    /// This returns an iterator over all header entries. Each entry contains
-    /// the header name paired with a vector containing its associated values.
-    /// For zero-allocation access, use [`names_iter`](Header::names_iter) and
+    /// This issues one host call to enumerate names and then one further host
+    /// call per distinct name to fetch its values, so the cost is O(number of
+    /// headers) host calls plus a heap allocation for every name and value. Use
+    /// this only when you need both the name and all of its values; otherwise
+    /// prefer [`names_iter`](Header::names_iter) and
     /// [`values_iter`](Header::values_iter).
     pub fn entries_iter(&self) -> impl Iterator<Item = (Bytes, Vec<Bytes>)> + '_ {
         self.names_iter().map(|name| {
@@ -90,10 +119,11 @@ impl Header {
 
     /// Return all headers as a map of names to value lists.
     ///
-    /// This collects all names and then queries each set of values, allocating
-    /// into a `HashMap` and multiple `Vec`s for the values. Each header name is
-    /// paired with a vector containing its associated values. Use
-    /// [`entries_iter`](Header::entries_iter) for zero-allocation access.
+    /// Costs the same O(number of headers) host calls as
+    /// [`entries_iter`](Header::entries_iter), plus heap allocations for the
+    /// `HashMap` and one `Vec` per header. Use
+    /// [`entries_iter`](Header::entries_iter) if you only need to iterate
+    /// without collecting.
     pub fn entries(&self) -> HashMap<Bytes, Vec<Bytes>> {
         self.entries_iter().collect()
     }

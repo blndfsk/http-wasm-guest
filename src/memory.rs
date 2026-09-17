@@ -58,9 +58,12 @@ impl Buffer {
     pub(crate) fn as_slice(&self) -> &[u8] {
         &self.data
     }
+
+    #[cfg(feature = "log")]
     pub(crate) fn as_mut_slice(&mut self) -> &mut [u8] {
         &mut self.data
     }
+
     pub(crate) fn as_subslice(&self, size: usize) -> &[u8] {
         &self.data[..size.min(SIZE)]
     }
