@@ -57,8 +57,10 @@ fn with_logger_config<R>(f: impl FnOnce(&mut HostLoggerConfig) -> R) -> R {
 
 /// Logger implementation that forwards records to the host.
 ///
-/// This integrates the Rust `log` crate with the http-wasm guest runtime's logging system.
-/// It provides logging for plugin authors via standard macros (`log::info!`, `log::warn!`, etc.).
+/// Install it with [`init`](HostLogger::init), [`init_with_level`](HostLogger::init_with_level),
+/// or [`init_with_config`](HostLogger::init_with_config); afterwards standard
+/// `log` macros (`log::info!`, `log::warn!`, …) are filtered by
+/// [`HostLoggerConfig::level`] and forwarded to the host.
 pub struct HostLogger;
 
 impl Log for HostLogger {
@@ -113,19 +115,21 @@ fn format_log_message(buf: &mut memory::Buffer, record: &Record, config: &HostLo
 }
 
 impl HostLogger {
-    /// Initialize the host-backed logger with default configuration.
+    /// Install the logger with the default [`HostLoggerConfig`].
+    ///
+    /// Returns `Err` if a logger was already installed.
     #[inline]
     pub fn init() -> Result<(), SetLoggerError> {
         HostLogger::init_with_config(HostLoggerConfig::default())
     }
 
-    /// Initialize the host-backed logger with a specific maximum level.
+    /// Install the logger with the given maximum level; other settings default.
     #[inline]
     pub fn init_with_level(level: Level) -> Result<(), SetLoggerError> {
         HostLogger::init_with_config(HostLoggerConfig { level, ..HostLoggerConfig::default() })
     }
 
-    /// Initialize the host-backed logger with full configuration.
+    /// Install the logger with the given configuration.
     #[inline]
     pub fn init_with_config(config: HostLoggerConfig) -> Result<(), SetLoggerError> {
         with_logger_config(|cfg| *cfg = config);

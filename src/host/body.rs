@@ -8,9 +8,7 @@ use crate::host::{Bytes, handler};
 /// # Cost model
 ///
 /// [`read`](Body::read) drains the body through repeated host calls of at most
-/// 2048 bytes each, and returns an owned [`Bytes`] copy — not a view into guest
-/// memory. [`write`](Body::write) passes your slice straight to the host in a
-/// single call without any guest-side allocation.
+/// 2048 bytes each. [`write`](Body::write) issues a single host call.
 pub struct Body(i32);
 impl Body {
     /// Create a new body handle for the given kind.
@@ -23,8 +21,7 @@ impl Body {
     /// The body is drained in chunks of at most 2048 bytes through repeated
     /// `read_body` host calls until the host reports EOF: a large body therefore
     /// costs one host call per 2048-byte chunk plus amortized heap growth to hold
-    /// the full payload (capped at just under 16 MB). The returned [`Bytes`] owns
-    /// its data; it is not a view into guest memory.
+    /// the full payload.
     ///
     /// `feature::BufferRequest` is required to read without consuming the request body.
     /// To enable it, call `admin::enable(BufferRequest)` before returning from handle_request.
@@ -41,8 +38,7 @@ impl Body {
     ///
     /// Writing is stateful: the first call in `handle_request` or
     /// `handle_response` overwrites any existing body, and subsequent calls
-    /// append to it. The host reads your slice directly from guest memory in a
-    /// single call; no guest-side allocation or copy is made.
+    /// append to it.
     pub fn write(&self, body: &[u8]) {
         handler::write_body(self.0, body);
     }

@@ -25,8 +25,8 @@ pub fn enable(feature: feature::Feature) -> i32 {
 /// payload is guest-specific and not necessarily UTF-8 encoded, and that a host
 /// which fails to retrieve the configuration will trap.
 ///
-/// Costs one host call into the shared 2048-byte buffer plus one heap allocation
-/// for the returned [`Bytes`] (none if the configuration is empty).
+/// Costs one host call plus one heap allocation for the returned [`Bytes`]
+/// (none if the configuration is empty).
 pub fn config() -> Bytes {
     Bytes::from(handler::get_config())
 }

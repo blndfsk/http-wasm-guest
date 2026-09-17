@@ -54,7 +54,7 @@ cargo build --target wasm32-wasip1 --example <name>
 ./run.sh info     # builds and runs "info" example
 ```
 
-Requires: Podman, Buildah, `traefik:v3.6` and `traefik/whoami` images.
+Requires: Podman, Buildah, `traefik` and `traefik/whoami` images.
 
 ## API Reference
 

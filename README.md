@@ -79,7 +79,7 @@ To run the examples using the `run.sh` script, you will need the following tools
 - **[Podman](https://podman.io/):** Used for running rootless containers and pods (a drop-in replacement for Docker).
 - **[Buildah](https://buildah.io/):** Used for building container images.
 - **Rust toolchain:** With the `wasm32-wasip1` target installed.
-- **Network access:** To pull the `traefik:v3.6` and `traefik/whoami` container images if not already present locally.
+- **Network access:** To pull the `traefik` and `traefik/whoami` container images if not already present locally.
 - **Sufficient permissions:** To run containerized workloads (may require appropriate user group membership).
 
 You can install Podman and Buildah using your system's package manager. For example, on Ubuntu:

@@ -25,7 +25,7 @@ impl Response {
     ///
     /// To call this in `handle_response` requires `feature::BufferResponse`.
     /// The default status is 200, so you only need to call this for other
-    /// values. No guest-side allocation is made.
+    /// values.
     pub fn set_status(&self, code: i32) {
         handler::set_status_code(code);
     }

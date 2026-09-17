@@ -9,13 +9,10 @@ use crate::host::{Bytes, handler};
 ///
 /// # Cost model
 ///
-/// Every read issues a host call that writes NUL-terminated data into a shared
-/// 2048-byte guest buffer (larger payloads are retried once against an
-/// exactly-sized heap allocation, capped at just under 16 MB). Because that
-/// buffer is reused for every subsequent host call, results are returned as
-/// **owned** [`Bytes`] copies rather than zero-copy views: expect one heap
-/// allocation per name or value plus the backing `Vec`. The `*_iter` forms skip
-/// only the final collection step; they do not avoid the per-item allocations.
+/// Every read issues one host call and returns owned [`Bytes`] copies: expect
+/// one heap allocation per name or value, plus the backing `Vec` where
+/// applicable. The `*_iter` forms skip only the final collection step; they do
+/// not avoid the per-item allocations.
 ///
 /// Header names are reported in lowercase, and name lookups are
 /// case-insensitive.
@@ -31,10 +28,9 @@ impl Header {
 
     /// Returns an iterator over all header names as raw bytes.
     ///
-    /// Header names are returned in lowercase, in the order provided by the
-    /// host runtime. Each name is yielded as an owned [`Bytes`] copied out of
-    /// the shared guest buffer, so each item costs one heap allocation even
-    /// though no `Vec` is collected up front. Use [`names`](Header::names) to
+    /// Names are yielded in the order provided by the host runtime. Each name
+    /// is an owned [`Bytes`]; each item costs one heap allocation even though no
+    /// `Vec` is collected up front. Use [`names`](Header::names) to
     /// collect them into a `Vec`.
     pub fn names_iter(&self) -> impl Iterator<Item = Bytes> + use<'_> {
         handler::header_names(self.0).into_iter().map(Bytes::from)
@@ -52,10 +48,9 @@ impl Header {
     /// Returns an iterator over all values for the given header name.
     ///
     /// The `name` is matched case-insensitively by the host. If the header does
-    /// not exist, the iterator yields nothing. Each value is yielded as an owned
-    /// [`Bytes`] copied out of the shared guest buffer (one heap allocation per
-    /// value); note that all values are read and allocated even if you only
-    /// consume some. Use [`values`](Header::values) to collect them into a `Vec`.
+    /// not exist, the iterator yields nothing. Each value is an owned [`Bytes`]
+    /// (one heap allocation per value); note that all values are read and
+    /// allocated even if you only consume some. Use [`values`](Header::values) to collect them into a `Vec`.
     pub fn values_iter(&self, name: &[u8]) -> impl Iterator<Item = Bytes> + use<'_> {
         handler::header_values(self.0, name).into_iter().map(Bytes::from)
     }
@@ -81,23 +76,21 @@ impl Header {
     /// Set a header value, replacing all existing values of the given name.
     ///
     /// The host traps if it fails to set the header. Matching is
-    /// case-insensitive; no heap allocation is made by the guest.
+    /// case-insensitive.
     pub fn set(&self, name: &[u8], value: &[u8]) {
         handler::set_header(self.0, name, value);
     }
 
     /// Add an additional value for a header name (appending to any existing values).
     ///
-    /// The host traps if it fails to add the header. No heap allocation is made
-    /// by the guest.
+    /// The host traps if it fails to add the header.
     pub fn add(&self, name: &[u8], value: &[u8]) {
         handler::add_header_value(self.0, name, value);
     }
 
     /// Remove a header and all of its values.
     ///
-    /// The host traps if it fails to remove the header. No heap allocation is
-    /// made by the guest.
+    /// The host traps if it fails to remove the header.
     pub fn remove(&self, name: &[u8]) {
         handler::remove_header(self.0, name);
     }

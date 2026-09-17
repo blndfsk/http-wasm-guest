@@ -16,8 +16,7 @@
 //! or [`HostLogger::init_with_config()`](crate::HostLogger::init_with_config)
 //! to install the logger and configure the maximum log level / message length.
 //! After initialization, all log records are filtered and sent to the host according to the configured level.
-//! Log messages are formatted into a fixed-size buffer (2048 bytes) and are also capped by
-//! `HostLoggerConfig::max_message_len` (default 2048).
+//! Long messages are truncated with a marker (see `HostLoggerConfig::max_message_len`).
 //!
 //! ## Disabling the `log` Feature
 //!
@@ -58,10 +57,9 @@ use crate::host::handler;
 ///
 /// * `level` - The severity code to use for the log message, passed to the host
 ///   as-is. The host maps debug=-1, info=0, warn=1, error=2.
-/// * `message` - The log message as a byte slice. It is passed to the host directly
-///   from guest memory with no guest-side copy or allocation. When routed through
-///   [`HostLogger`](crate::HostLogger), formatted messages are capped at 2048 bytes
-///   (or `HostLoggerConfig::max_message_len`) and truncated with a marker.
+/// * `message` - The log message as a byte slice. When routed through
+///   [`HostLogger`](crate::HostLogger), long messages are truncated with a
+///   marker.
 ///
 /// This function is typically called internally by the logger implementation, but can be used directly to send custom log messages to the host.
 ///
