@@ -78,17 +78,27 @@ pub(crate) fn set_status_code(code: i32) {
 pub(crate) fn body(kind: i32) -> Box<[u8]> {
     let mut out = Vec::new();
     loop {
-        let eof = memory::with_buffer(|buffer| {
-            let (eof, size) = eof_size(unsafe { ffi::read_body(kind, buffer.as_mut_ptr(), as_i32(buffer.capacity())) });
-            debug_assert!(size <= buffer.capacity(), "host returned size {size} exceeds buffer capacity {}", buffer.capacity());
-            out.extend_from_slice(buffer.as_subslice(size));
-            eof || size == 0
-        });
-        if eof || out.len() >= MAX_ALLOC_SIZE {
+        let (done, chunk) = body_chunk(kind);
+        out.extend_from_slice(&chunk);
+        if done || out.len() >= MAX_ALLOC_SIZE {
             break;
         }
     }
     out.into_boxed_slice()
+}
+
+/// Reads one chunk of the body with a single `read_body` host call into the
+/// shared buffer and returns it as an owned copy.
+///
+/// Returns `(done, chunk)`: `done` is `true` once the host reports EOF or a
+/// zero-length read, meaning further reads yield no data.
+pub(crate) fn body_chunk(kind: i32) -> (bool, Box<[u8]>) {
+    memory::with_buffer(|buffer| {
+        let (eof, size) = eof_size(unsafe { ffi::read_body(kind, buffer.as_mut_ptr(), as_i32(buffer.capacity())) });
+        debug_assert!(size <= buffer.capacity(), "host returned size {size} exceeds buffer capacity {}", buffer.capacity());
+        let chunk = buffer.to_boxed_slice(size);
+        (eof || chunk.is_empty(), chunk)
+    })
 }
 
 pub(crate) fn write_body(kind: i32, body: &[u8]) {
@@ -323,6 +333,14 @@ mod tests {
         // EMPTY_BODY_WITHOUT_EOF returns full buffer chunks without EOF
         let content = body(test::kinds::EMPTY_BODY_WITHOUT_EOF);
         assert_eq!(content.len(), 0);
+    }
+
+    #[test]
+    fn test_body_chunk_oversized_not_done() {
+        // OVERSIZED_BODY fills the buffer on every call without EOF
+        let (done, chunk) = body_chunk(test::kinds::OVERSIZED_BODY);
+        assert!(!done);
+        assert_eq!(chunk.len(), 2048);
     }
 
     // =========================================================================

@@ -18,6 +18,7 @@ pub mod feature;
 pub mod log;
 
 pub use body::Body;
+pub use body::BodyIter;
 pub use header::Header;
 pub use request::Request;
 pub use response::Response;
