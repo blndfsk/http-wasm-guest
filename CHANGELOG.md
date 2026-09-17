@@ -1,3 +1,9 @@
+## v1.2.0
+
+### Features
+
+- **Body streaming**: New `Body::read_iter()` returns a `BodyIter` that yields the body as owned `Bytes` chunks of at most 2048 bytes — one host call per chunk, nothing accumulated — so large bodies can be processed with bounded memory. The stream ends when the host reports EOF or a zero-length read. `Body::read()` is unchanged.
+
 ## v1.1.0
 
 ### Features
