@@ -39,8 +39,7 @@ impl Body {
 
     /// Write the provided bytes as the body.
     ///
-    /// Per the [HTTP Handler ABI](https://http-wasm.io/http-handler-abi/),
-    /// `write_body` is stateful: the first call in `handle_request` or
+    /// Writing is stateful: the first call in `handle_request` or
     /// `handle_response` overwrites any existing body, and subsequent calls
     /// append to it. The host reads your slice directly from guest memory in a
     /// single call; no guest-side allocation or copy is made.

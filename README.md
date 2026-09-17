@@ -13,16 +13,18 @@ It is designed for writing Traefik plugins in Rust, and works with any http-wasm
 ## Design Goals
 
 - Not opinionated, the focus is to provide a very thin wrapper around the host functions.
-- Minimal dependency footprint: only the [`bytes`](https://crates.io/crates/bytes) and `log` crates are used at runtime (`log` can be deactivated)
-- Standard [`bytes::Bytes`](https://docs.rs/bytes/latest/bytes/struct.Bytes.html) type for all byte data — zero-copy, cheaply clonable, and familiar from the HTTP ecosystem.
-- Memory-efficient data handling suitable for constrained Wasm environments.
+- Minimal dependency footprint: only the [`bytes`](https://crates.io/crates/bytes) and `log` crates are used at runtime (`log` can be deactivated).
+- Standard [`bytes::Bytes`](https://docs.rs/bytes/latest/bytes/struct.Bytes.html) type for all byte data — cheaply clonable and familiar from the HTTP ecosystem.
+- **Writes are allocation-free**: setters pass your data straight from guest memory to the host in a single host call, with no guest-side copy.
+- **Reads return owned data**: getters copy what the host provides into owned values, so results always outlive the host call.
 
-## Caveat
+## Memory Model
 
-To avoid heap allocations on hot paths (logging, reading from the host), buffers are preallocated and reused.
-For reading large payloads, an overflow path is implemented that allocates the needed buffer on the heap.
-The maximum size of these buffers is 16MB, values larger are truncated.
-Log messages are formatted into a fixed-size 2048-byte static buffer; messages exceeding this limit will be truncated.
+To keep hot paths allocation-free, host reads are written into a single shared 2048-byte buffer that is reused for every host call. A field that does not fit is fetched with one extra host call into an exactly-sized heap allocation; values larger than just under 16 MB are truncated.
+
+Log messages routed through the `log` feature are formatted into the same 2048-byte buffer; longer messages are truncated with a marker.
+
+Per-method cost details live in the [API documentation](https://docs.rs/http-wasm-guest).
 
 ## Credits
 

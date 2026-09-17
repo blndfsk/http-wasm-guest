@@ -57,8 +57,7 @@ use crate::host::handler;
 /// # Arguments
 ///
 /// * `level` - The severity code to use for the log message, passed to the host
-///   as-is. The [HTTP Handler ABI](https://http-wasm.io/http-handler-abi/) defines
-///   debug=-1, info=0, warn=1, error=2, none=3.
+///   as-is. The host maps debug=-1, info=0, warn=1, error=2.
 /// * `message` - The log message as a byte slice. It is passed to the host directly
 ///   from guest memory with no guest-side copy or allocation. When routed through
 ///   [`HostLogger`](crate::HostLogger), formatted messages are capped at 2048 bytes

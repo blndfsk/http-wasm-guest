@@ -52,9 +52,8 @@ impl Request {
 
     /// Return the request URI as raw bytes.
     ///
-    /// Per the [HTTP Handler ABI](https://http-wasm.io/http-handler-abi/), the
-    /// host always returns the URI percent-encoded as ASCII (path and query),
-    /// and reports `/` for a request with no URI.
+    /// The host always returns the URI percent-encoded as ASCII (path and
+    /// query), and reports `/` for a request with no URI.
     pub fn uri(&self) -> Bytes {
         Bytes::from(handler::uri())
     }

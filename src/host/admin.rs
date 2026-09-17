@@ -11,10 +11,9 @@ use crate::host::{Bytes, feature, handler};
 /// complete bitflag of features the host supports, so check it against your
 /// request to see which features were actually enabled.
 ///
-/// Per the [HTTP Handler ABI](https://http-wasm.io/http-handler-abi/), calling
-/// this during `handle_request` enables features only for the current request;
-/// call it before returning from `handle_request`, or during initialization to
-/// fail fast on hosts that lack features your plugin requires.
+/// Calling this during `handle_request` enables features only for the current
+/// request; call it before returning from `handle_request`, or during
+/// initialization to fail fast on hosts that lack features your plugin requires.
 pub fn enable(feature: feature::Feature) -> i32 {
     handler::enable_feature(feature.into())
 }

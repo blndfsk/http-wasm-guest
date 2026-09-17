@@ -17,8 +17,8 @@ use crate::host::{Bytes, handler};
 /// allocation per name or value plus the backing `Vec`. The `*_iter` forms skip
 /// only the final collection step; they do not avoid the per-item allocations.
 ///
-/// Per the [HTTP Handler ABI](https://http-wasm.io/http-handler-abi/), header
-/// names are reported in lowercase and name lookups are case-insensitive.
+/// Header names are reported in lowercase, and name lookups are
+/// case-insensitive.
 pub struct Header(i32);
 impl Header {
     /// Create a header handle for a specific host-defined kind.

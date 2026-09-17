@@ -15,8 +15,7 @@ impl Response {
     }
     /// Return the current response status code.
     ///
-    /// Per the [HTTP Handler ABI](https://http-wasm.io/http-handler-abi/), this
-    /// reads the status produced by the next handler, so calling it before
+    /// This reads the status produced by the next handler, so calling it before
     /// `handle_response` may panic.
     pub fn status(&self) -> i32 {
         handler::status_code()

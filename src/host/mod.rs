@@ -2,8 +2,7 @@
 //!
 //! This module provides access to request and response handles, header and body
 //! manipulation utilities, logging, and feature configuration for `http-wasm`
-//! guest plugins. The behavior of these functions follows the [http-wasm HTTP
-//! Handler ABI](https://http-wasm.io/http-handler-abi/).
+//! guest plugins.
 //!
 //! # Memory and cost model
 //!
